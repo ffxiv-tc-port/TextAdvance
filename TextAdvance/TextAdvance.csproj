@@ -86,6 +86,12 @@
 	</ItemGroup>
 
 	<ItemGroup>
+	  <Content Include="LanguageChineseTraditional.ini">
+	    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+	  </Content>
+	</ItemGroup>
+
+	<ItemGroup>
 	  <EditorConfigFiles Remove="D:\VS\TextAdvance\TextAdvance\.editorconfig" />
 	</ItemGroup>
 

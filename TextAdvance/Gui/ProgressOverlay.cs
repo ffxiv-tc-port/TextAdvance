@@ -20,7 +20,7 @@ public class ProgressOverlay : EzOverlayWindow
         if (ImGui.IsWindowHovered())
         {
             ImGui.SetMouseCursor(ImGuiMouseCursor.Hand);
-            ImGui.SetTooltip("Right click to stop all tasks");
+            ImGui.SetTooltip("Right click to stop all tasks".Loc());
             if (ImGui.IsMouseClicked(ImGuiMouseButton.Right))
             {
                 S.EntityOverlay.TaskManager.Abort();

@@ -38,8 +38,8 @@ internal class WaitOverlay : Window
         this.Frame = ImGui.GetFrameCount();
         CImGui.igBringWindowToDisplayFront(CImGui.igGetCurrentWindow());
         ImGui.Dummy(new(ImGuiHelpers.MainViewport.Size.X, ImGuiHelpers.MainViewport.Size.Y / 3));
-        ImGuiEx.ImGuiLineCentered("Waitoverlay1", () => ImGuiEx.Text($"Filling in request."));
-        ImGuiEx.ImGuiLineCentered("Waitoverlay2", () => ImGuiEx.Text($"This can take couple seconds. If this process is stuck, please click the button below."));
+        ImGuiEx.ImGuiLineCentered("Waitoverlay1", () => ImGuiEx.Text("Filling in request.".Loc()));
+        ImGuiEx.ImGuiLineCentered("Waitoverlay2", () => ImGuiEx.Text("This can take couple seconds. If this process is stuck, please click the button below.".Loc()));
         ImGuiEx.Text("");
         var span = TimeSpan.FromMilliseconds(Environment.TickCount64 - this.StartTime);
         ImGuiEx.ImGuiLineCentered("Waitoverlay4", () => ImGuiEx.Text($"{span.Minutes:D2}:{span.Seconds:D2}"));
@@ -47,7 +47,7 @@ internal class WaitOverlay : Window
         ImGuiEx.Text("");
         ImGuiEx.ImGuiLineCentered("Waitoverlay3", () =>
         {
-            if (ImGui.Button("Cancel"))
+            if (ImGui.Button("Cancel".Loc()))
             {
                 P.TaskManager.Abort();
                 ExecRequestFill.DontFillThisWindow = true;

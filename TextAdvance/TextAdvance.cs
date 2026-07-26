@@ -53,6 +53,9 @@ public unsafe class TextAdvance : IDalamudPlugin
     {
         P = this;
         ECommonsMain.Init(pluginInterface, this, Module.SplatoonAPI);
+        Localization.Init(pluginInterface.UiLanguage is "tw" or "zh" or "zh-Hant" or "zh-Hans"
+            ? "ChineseTraditional"
+            : "English");
         new TickScheduler(delegate
         {
             EzConfig.Migrate<Config>();

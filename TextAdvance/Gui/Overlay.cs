@@ -35,7 +35,7 @@ internal class Overlay : Window
         {
             col = ImGuiColors.DalamudRed;
         }
-        ImGuiEx.Text(col, "TextAdvance: ");
+        ImGuiEx.Text(col, "TextAdvance: ".Loc());
         ImGui.SameLine(0, 0);
         if (!blocked || Environment.TickCount64 % 2000 > 1000)
         {
@@ -79,7 +79,7 @@ internal class Overlay : Window
         }
         else
         {
-            ImGuiEx.Text(ImGuiColors.DalamudRed, $"paused externally");
+            ImGuiEx.Text(ImGuiColors.DalamudRed, "paused externally".Loc());
         }
 
         this.Position = ImGuiHelpers.MainViewport.Pos + new Vector2(ImGuiHelpers.MainViewport.Size.X / 2 - ImGui.GetWindowSize().X / 2, 0) - C.OverlayOffset;
