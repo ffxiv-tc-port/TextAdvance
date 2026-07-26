@@ -3,7 +3,7 @@
 		"Name": "TextAdvance",
 		"InternalName": "TextAdvance",
 		"Punchline": "Quest speedrunning assistance tool. Automatically skips subtitle boxes and confirms cutscene skipping",
-		"Description": "",
+		"Description": "Quest speedrunning assistance tool. Automatically confirms quest acceptance and completion, skips subtitles, cutscenes, and most prompts. Includes optional Splatoon-based quest target indicators and vnavmesh-based auto-navigation to quest objectives.",
 		"ApplicableVersion": "any",
 		"RepoUrl": "https://github.com/ffxiv-tc-port/TextAdvance",
 		"IconUrl": "https://raw.githubusercontent.com/ffxiv-tc-port/DalamudPluginsTC/main/icons/TextAdvance.png",
