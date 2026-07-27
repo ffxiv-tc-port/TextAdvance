@@ -32,17 +32,17 @@ public unsafe class MoveManager
     public void MoveToFlag()
     {
         if (!Player.Available) return;
-        if (AgentMap.Instance()->IsFlagMarkerSet == false)
+        if (AgentMap.Instance()->FlagMarkerCount == 0)
         {
             DuoLog.Warning($"Flag is not set");
             return;
         }
-        if (AgentMap.Instance()->FlagMapMarker.TerritoryId != Svc.ClientState.TerritoryType)
+        if (AgentMap.Instance()->FlagMapMarkers[0].TerritoryId != Svc.ClientState.TerritoryType)
         {
             DuoLog.Warning($"Flag is in different zone than current");
             return;
         }
-        var m = AgentMap.Instance()->FlagMapMarker;
+        var m = AgentMap.Instance()->FlagMapMarkers[0];
         var pos = P.NavmeshManager.PointOnFloor(new(m.XFloat, 1024, m.YFloat), false, 5);
         var iterations = 0;
         if (pos == null)
