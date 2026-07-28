@@ -67,15 +67,18 @@ public unsafe class TextAdvance : IDalamudPlugin
             Svc.Commands.AddHandler("/at", new CommandInfo(this.HandleCommand)
             {
                 ShowInHelp = true,
+                // 原本第一行結尾寫的是原始字串裡的字面 "\n" 兩個字元(原始字串不處理跳脫序列),
+                // 所以指令說明第一行實際上會印出反斜線 n。改成真正的換行。
                 HelpMessage = """
-                toggles TextAdvance plugin.\n/at y|yes|e|enable - turns on TextAdvance.
+                toggles TextAdvance plugin.
+                /at y|yes|e|enable - turns on TextAdvance.
                 /at n|no|d|disable - turns off TextAdvance.
                 /at c|config|s|settings - opens TextAdvance settings.
                 /at g - toggles visual quest target markers
                 /at mtq - move to the first available quest location, if present (requires navmesh integration to be enabled)
                 /at mtqstop - cancel all pending movement tasks
                 /at mtf - move to flag
-                """
+                """.Loc()
             });
             if (Svc.ClientState.IsLoggedIn)
             {
