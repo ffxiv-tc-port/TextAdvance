@@ -8,5 +8,5 @@
 		"RepoUrl": "https://github.com/ffxiv-tc-port/TextAdvance",
 		"IconUrl": "https://raw.githubusercontent.com/ffxiv-tc-port/DalamudPluginsTC/main/icons/TextAdvance.png",
 		"LoadPriority": 0,
-		"DalamudApiLevel": 12
+		"DalamudApiLevel": 13
 }
