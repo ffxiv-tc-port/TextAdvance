@@ -45,6 +45,7 @@ public unsafe class TextAdvance : IDalamudPlugin
         Svc.Commands.RemoveHandler("/at");
         Safe(ExecSkipTalk.Shutdown);
         Safe(ExecPickReward.Shutdown);
+        Safe(ExecUseEventItem.Shutdown);
         ECommonsMain.Dispose();
         P = null;
     }
@@ -99,6 +100,7 @@ public unsafe class TextAdvance : IDalamudPlugin
             new EzTerritoryChanged(this.ClientState_TerritoryChanged);
             ExecSkipTalk.Init();
             ExecPickReward.Init();
+            ExecUseEventItem.Init();
             this.NavmeshManager = new();
             SingletonServiceManager.Initialize(typeof(ServiceManager));
             EzIPC.OnSafeInvocationException += this.EzIPC_OnSafeInvocationException;

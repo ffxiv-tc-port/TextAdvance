@@ -168,6 +168,15 @@ public class Config : IEzConfig
         }
         return this.MainConfig.EnableAutoInteract;
     }
+    public bool GetEnableUseEventItem()
+    {
+        if (S.IPCProvider.IsInExternalControl()) return S.IPCProvider.ExternalConfig.Merge(this.MainConfig).EnableUseEventItem;
+        if (!(this.GlobalOverridesLocal && P.Enabled) && this.TerritoryConditions.TryGetValue(Svc.ClientState.TerritoryType, out var val))
+        {
+            return val.EnableUseEventItem;
+        }
+        return this.MainConfig.EnableUseEventItem;
+    }
 }
 
 public enum Button
@@ -187,6 +196,7 @@ public class TerritoryConfig
     public bool EnableTalkSkip = true;
     public bool EnableRequestFill = true;
     public bool EnableAutoInteract = false;
+    public bool EnableUseEventItem = false;
 
     public bool QTIQuestEnabled = true;
     public Vector4 QTIQuestColor = EColor.PurpleBright;
@@ -207,7 +217,7 @@ public class TerritoryConfig
 
     public bool IsEnabled()
     {
-        return this.EnableQuestAccept || this.EnableQuestComplete || this.EnableRequestHandin || this.EnableCutsceneEsc || this.EnableCutsceneSkipConfirm || this.EnableTalkSkip || this.EnableRequestFill || this.EnableRewardPick || this.EnableAutoInteract;
+        return this.EnableQuestAccept || this.EnableQuestComplete || this.EnableRequestHandin || this.EnableCutsceneEsc || this.EnableCutsceneSkipConfirm || this.EnableTalkSkip || this.EnableRequestFill || this.EnableRewardPick || this.EnableAutoInteract || this.EnableUseEventItem;
     }
 }
 
@@ -223,6 +233,7 @@ public class ExternalTerritoryConfig
     public bool? EnableTalkSkip = null;
     public bool? EnableRequestFill = null;
     public bool? EnableAutoInteract = null;
+    public bool? EnableUseEventItem = null;
 
     public TerritoryConfig Merge(TerritoryConfig other)
     {
@@ -238,6 +249,7 @@ public class ExternalTerritoryConfig
         ret.EnableTalkSkip = this.EnableTalkSkip ?? other.EnableTalkSkip;
         ret.EnableRequestFill = this.EnableRequestFill ?? other.EnableRequestFill;
         ret.EnableAutoInteract = this.EnableAutoInteract ?? other.EnableAutoInteract;
+        ret.EnableUseEventItem = this.EnableUseEventItem ?? other.EnableUseEventItem;
         return ret;
     }
 }

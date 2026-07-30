@@ -64,6 +64,8 @@ internal static class TabTerritory
                 ImGui.Checkbox("Automatic cutscene skip confirmation".Loc(), ref settings.EnableCutsceneSkipConfirm);
                 ImGui.Checkbox("Automatic interaction with quest-related object (IN)".Loc(), ref settings.EnableAutoInteract);
                 ImGuiComponents.HelpMarker("Automatically interacts with nearby quest-related NPCs and objects.".Loc());
+                ImGui.Checkbox("Automatic key item use (KI)".Loc(), ref settings.EnableUseEventItem);
+                ImGuiComponents.HelpMarker("When a quest objective asks you to use a key item, automatically uses the appropriate key item on the quest target. Intended for doing quests manually; quest automation plugins like Questionable use items by themselves and do not need this.".Loc());
                 ImGui.Separator();
                 ImGui.Checkbox("Display quest target indicators".Loc(), ref settings.QTIQuestEnabled);
                 ImGui.ColorEdit4("Quest target indicator color".Loc(), ref settings.QTIQuestColor, ImGuiColorEditFlags.NoInputs);
