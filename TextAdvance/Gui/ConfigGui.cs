@@ -1,5 +1,4 @@
-﻿using ECommons.Funding;
-using ECommons.SimpleGui;
+﻿using ECommons.SimpleGui;
 
 namespace TextAdvance.Gui;
 
@@ -20,8 +19,10 @@ public class ConfigGui : ConfigWindow
     {
         if (ImGui.BeginChild("Child", new(ImGui.GetContentRegionAvail().X, ImGui.GetContentRegionAvail().Y - ImGui.GetFrameHeightWithSpacing())))
         {
-            PatreonBanner.DrawRight();
-            ImGuiEx.EzTabBar("TextAdvanceTab", PatreonBanner.Text,
+            // 私有 TC fork 不需要上游贊助 banner;KoFiTransparent 傳 null 以繞開
+            // ECommons 此 pin 的 PatreonBanner.RightTransparentTab → ImGuiEx.BeginTabItem(label, flags)
+            // throw stub(EzTabBar stub bug class),否則開設定視窗必崩。
+            ImGuiEx.EzTabBar("TextAdvanceTab", null,
                 ("General config", TabConfig.Draw, null, true),
                 ("Target indicators", TabSplatoon.Draw, null, true),
                 ("Auto-enable", TabChars.Draw, null, true),
