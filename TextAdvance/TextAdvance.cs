@@ -46,6 +46,7 @@ public unsafe class TextAdvance : IDalamudPlugin
         Safe(ExecSkipTalk.Shutdown);
         Safe(ExecPickReward.Shutdown);
         Safe(ExecUseEventItem.Shutdown);
+        Safe(EzIpcFailureLog.Disable);
         ECommonsMain.Dispose();
         P = null;
     }
@@ -54,6 +55,11 @@ public unsafe class TextAdvance : IDalamudPlugin
     {
         P = this;
         ECommonsMain.Init(pluginInterface, this, Module.SplatoonAPI);
+        // 讓「呼叫了對方沒有的 IPC 方法」不再完全靜默。
+        // ⚠️ 這裡原本是寫進 InternalLog（ECommons 的 1000 筆環形緩衝區），
+        //    那**根本不會進 dalamud.log**，只有開 ECommons 的除錯分頁才看得到 ——
+        //    等於這道網一直是形同虛設的。改成走 Svc.Log 並加上節流。
+        EzIpcFailureLog.Enable();
         Localization.Init(pluginInterface.UiLanguage is "tw" or "zh" or "zh-Hant" or "zh-Hans"
             ? "ChineseTraditional"
             : "English");
@@ -103,13 +109,7 @@ public unsafe class TextAdvance : IDalamudPlugin
             ExecUseEventItem.Init();
             this.NavmeshManager = new();
             SingletonServiceManager.Initialize(typeof(ServiceManager));
-            EzIPC.OnSafeInvocationException += this.EzIPC_OnSafeInvocationException;
         });
-    }
-
-    private void EzIPC_OnSafeInvocationException(Exception obj)
-    {
-        InternalLog.Error($"IPC error: {obj}");
     }
 
     private void ClientState_TerritoryChanged(ushort obj)
