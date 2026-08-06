@@ -24,7 +24,28 @@ namespace TextAdvance.Executors
         private static void OnJournalResultSetup(AddonEvent type, AddonArgs args)
         {
             var addon = (AtkUnitBase*)args.Addon.Address;
-            var canvas = ((AtkComponentNode*)addon->UldManager.NodeList[7])->Component;
+
+            // 🔴 NodeList[7] 是裸解參考:PostSetup 當下版面不一定已經建好,NodeList 可能是 null
+            // 或不足 8 格,取到的節點也可能是 null。讀空指標會丟出 AccessViolationException,
+            // 那是 corrupted-state exception,try/catch 與任何例外隔離都攔不到,只能事前擋。
+            // 讀不出來就這次不挑獎勵(維持原本「不動作」的安全方向),並留一行使用者回報得到的紀錄。
+            if (addon->UldManager.NodeList == null || addon->UldManager.NodeListCount <= 7)
+            {
+                PluginLog.Information("JournalResult: 節點清單尚未建好(NodeListCount 不足),這次不自動挑選獎勵。");
+                return;
+            }
+            var canvasNode = (AtkComponentNode*)addon->UldManager.NodeList[7];
+            if (canvasNode == null)
+            {
+                PluginLog.Information("JournalResult: 獎勵清單節點是空指標,這次不自動挑選獎勵。");
+                return;
+            }
+            var canvas = canvasNode->Component;
+            if (canvas == null)
+            {
+                PluginLog.Information("JournalResult: 獎勵清單節點還沒有 Component,這次不自動挑選獎勵。");
+                return;
+            }
             PluginLog.Information($"Component: {(nint)canvas:X16}");
             if (IsEnabled)
             {

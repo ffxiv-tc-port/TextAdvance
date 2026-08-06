@@ -99,7 +99,10 @@ internal static unsafe class TabDebug
         }
         if (ImGui.CollapsingHeader("Reward pick"))
         {
-            if (TryGetAddonByName<AtkUnitBase>("JournalResult", out var addon) && IsAddonReady(addon))
+            // 同 ExecPickReward:NodeList[7] 不能裸解參考,空指標是攔不到的 AccessViolationException。
+            if (TryGetAddonByName<AtkUnitBase>("JournalResult", out var addon) && IsAddonReady(addon)
+                && addon->UldManager.NodeList != null && addon->UldManager.NodeListCount > 7
+                && addon->UldManager.NodeList[7] != null)
             {
                 var canvas = addon->UldManager.NodeList[7];
                 var r = new ReaderJournalResult(addon);
