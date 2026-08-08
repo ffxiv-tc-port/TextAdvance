@@ -136,7 +136,11 @@ public static unsafe class Utils
 
     public static string GetMountName(int id)
     {
-        return Svc.Data.GetExcelSheet<Mount>().GetRow((uint)id).Singular.ExtractText();
+        // id 來自設定檔的 C.Mount，可能跨版本殘留、也可能是負數哨兵值。
+        // 裸 GetRow 查無此列時 Lumina 會擲例外，而這裡的呼叫點包含設定視窗的 Draw
+        // 路徑，一擲就把整個視窗弄不見；查不到時直接把 id 顯示出來讓使用者看得見。
+        if(id < 0 || !Svc.Data.GetExcelSheet<Mount>().TryGetRow((uint)id, out var mount)) return $"?{id}";
+        return mount.Singular.ExtractText();
     }
 
     public static bool CanFly() => C.EnableFlight && S.Memory.IsFlightProhibited(S.Memory.FlightAddr) == 0;
