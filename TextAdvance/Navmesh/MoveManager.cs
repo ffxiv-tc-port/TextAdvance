@@ -211,7 +211,11 @@ public unsafe class MoveManager
         if (ActionManager.Instance()->GetActionStatus(ActionType.GeneralAction, 9) == 0)
         {
             var mount = C.Mount;
-            if (mount == 0 || !PlayerState.Instance()->IsMountUnlocked((uint)mount))
+            // C.Mount 是設定檔回讀的值，可能是負數或表外的 id。IsMountUnlocked 是原生呼叫，
+            // 對表外 id 的行為沒有驗證過（解鎖旗標是位元陣列，越界就是越界讀取），
+            // 所以先用 Mount 表把 id 驗過再送進去：查不到的一律當成「沒解鎖」，
+            // 直接走底下「隨機挑一隻已解鎖的」分支。原生面對的永遠是表內 id。
+            if (mount <= 0 || !Svc.Data.GetExcelSheet<Mount>().TryGetRow((uint)mount, out _) || !PlayerState.Instance()->IsMountUnlocked((uint)mount))
             {
                 var mounts = Svc.Data.GetExcelSheet<Mount>().Where(x => x.Singular != "" && PlayerState.Instance()->IsMountUnlocked(x.RowId));
                 if (mounts.Any())
