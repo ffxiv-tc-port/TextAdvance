@@ -110,8 +110,8 @@ public unsafe class MoveManager
         var obj = this.GetNearestMTQObject();
         if (obj != null)
         {
-            this.EnqueueMoveAndInteract(new(obj.Position, obj.DataId, false), 3f);
-            this.Log($"Precise nav: {obj.Name}/{obj.DataId:X8}");
+            this.EnqueueMoveAndInteract(new(obj.Position, obj.BaseId, false), 3f);
+            this.Log($"Precise nav: {obj.Name}/{obj.BaseId:X8}");
         }
         else
         {
@@ -166,7 +166,7 @@ public unsafe class MoveManager
                 var obj = data.GetIGameObject();
                 if (obj != null)
                 {
-                    S.EntityOverlay.TaskManager.Insert(() => this.InteractWithDataID(obj.DataId));
+                    S.EntityOverlay.TaskManager.Insert(() => this.InteractWithDataID(obj.BaseId));
                 }
             });
         }
@@ -285,8 +285,8 @@ public unsafe class MoveManager
                 if (obj != null)
                 {
                     data.Position = obj.Position;
-                    data.DataID = obj.DataId;
-                    this.Log($"Correction to MTQ object: {obj.Name}/{obj.DataId:X8}");
+                    data.DataID = obj.BaseId;
+                    this.Log($"Correction to MTQ object: {obj.Name}/{obj.BaseId:X8}");
                     this.MoveToPosition(data, distance);
                 }
                 else
@@ -298,8 +298,8 @@ public unsafe class MoveManager
                             if (Vector3.Distance(data.Position, x.Position) < 100f && x.ObjectKind.EqualsAny(ObjectKind.EventNpc | ObjectKind.EventObj) && x.IsTargetable)
                             {
                                 data.Position = x.Position;
-                                data.DataID = x.DataId;
-                                this.Log($"Correction to non-MTQ object: {x.Name}/{x.DataId:X8}");
+                                data.DataID = x.BaseId;
+                                this.Log($"Correction to non-MTQ object: {x.Name}/{x.BaseId:X8}");
                                 this.MoveToPosition(data, distance);
                                 break;
                             }
@@ -360,7 +360,7 @@ public unsafe class MoveManager
         if (Svc.Targets.Target != null)
         {
             var t = Svc.Targets.Target;
-            if (t.IsTargetable && t.DataId == dataID && Vector3.Distance(Player.Object.Position, t.Position) < 10f && !IsOccupied() && !Player.IsAnimationLocked && Utils.ThrottleAutoInteract())
+            if (t.IsTargetable && t.BaseId == dataID && Vector3.Distance(Player.Object.Position, t.Position) < 10f && !IsOccupied() && !Player.IsAnimationLocked && Utils.ThrottleAutoInteract())
             {
                 TargetSystem.Instance()->InteractWithObject(Svc.Targets.Target.Struct(), false);
                 return true;
@@ -370,7 +370,7 @@ public unsafe class MoveManager
         {
             foreach (var t in Svc.Objects)
             {
-                if (t.IsTargetable && t.DataId == dataID && Vector3.Distance(Player.Object.Position, t.Position) < 10f && !IsOccupied() && EzThrottler.Throttle("SetTarget"))
+                if (t.IsTargetable && t.BaseId == dataID && Vector3.Distance(Player.Object.Position, t.Position) < 10f && !IsOccupied() && EzThrottler.Throttle("SetTarget"))
                 {
                     Svc.Targets.Target = t;
                     return false;

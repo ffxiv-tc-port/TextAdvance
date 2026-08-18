@@ -17,9 +17,9 @@ internal static class TabChars
                 dele = s;
             }
         }
-        if (ImGui.Button("Add current character".Loc()) && Svc.ClientState.LocalPlayer != null)
+        if (ImGui.Button("Add current character".Loc()) && Svc.Objects.LocalPlayer != null)
         {
-            C.AutoEnableNames.Add(Svc.ClientState.LocalPlayer.Name.ToString() + "@" + Svc.ClientState.LocalPlayer.HomeWorld.Value.Name.ToString());
+            C.AutoEnableNames.Add(Svc.Objects.LocalPlayer.Name.ToString() + "@" + Svc.Objects.LocalPlayer.HomeWorld.Value.Name.ToString());
         }
         ImGui.SameLine();
         ImGui.SetNextItemWidth(200f);

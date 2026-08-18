@@ -230,10 +230,10 @@ public unsafe class TextAdvance : IDalamudPlugin
             ExecSkipTalk.IsEnabled = false;
             ExecPickReward.IsEnabled = false;
             ExecAutoSnipe.IsEnabled = false;
-            if (this.LoggedIn && Svc.ClientState.LocalPlayer != null)
+            if (this.LoggedIn && Svc.Objects.LocalPlayer != null)
             {
                 this.LoggedIn = false;
-                if (this.Config.AutoEnableNames.Contains(Svc.ClientState.LocalPlayer.Name.ToString() + "@" + Svc.ClientState.LocalPlayer.HomeWorld.ValueNullable?.Name.ToString()))
+                if (this.Config.AutoEnableNames.Contains(Svc.Objects.LocalPlayer.Name.ToString() + "@" + Svc.Objects.LocalPlayer.HomeWorld.ValueNullable?.Name.ToString()))
                 {
                     this.Enabled = true;
                     if (!C.NotifyDisableOnLogin)

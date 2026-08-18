@@ -122,7 +122,7 @@ public static unsafe class Utils
         {
             return true;
         }
-        else if (x.ObjectKind == ObjectKind.EventObj && x.IsTargetable && (Markers.EventObjWhitelist.Contains(x.DataId) || Markers.EventObjNameWhitelist.ContainsIgnoreCase(x.Name.ToString())))
+        else if (x.ObjectKind == ObjectKind.EventObj && x.IsTargetable && (Markers.EventObjWhitelist.Contains(x.BaseId) || Markers.EventObjNameWhitelist.ContainsIgnoreCase(x.Name.ToString())))
         {
             return true;
         }

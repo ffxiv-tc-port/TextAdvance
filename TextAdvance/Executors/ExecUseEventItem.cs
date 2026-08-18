@@ -48,7 +48,7 @@ public static unsafe class ExecUseEventItem
     private static void TryUseEventItem()
     {
         if (!P.IsEnabled() || P.IsDisableButtonHeld() || !C.GetEnableUseEventItem()) return;
-        if (Svc.ClientState.LocalPlayer == null) return;
+        if (Svc.Objects.LocalPlayer == null) return;
         if (Svc.Condition[ConditionFlag.InCombat]) return;
         if (IsCasting()) return;
         // 互動觸發的事件尚未結束:等 PostDraw 下一輪(事件收尾後)再試,對應 DR 的 RunOnTick 重試
@@ -78,7 +78,7 @@ public static unsafe class ExecUseEventItem
     private static bool TryGetNearbyQuest(out uint questRowId)
     {
         questRowId = 0;
-        var player = Svc.ClientState.LocalPlayer;
+        var player = Svc.Objects.LocalPlayer;
         if (player == null) return false;
 
         var nearbyMarkerNames = new HashSet<string>();
