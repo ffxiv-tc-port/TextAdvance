@@ -23,12 +23,12 @@ public class ConfigGui : ConfigWindow
             // ECommons 此 pin 的 PatreonBanner.RightTransparentTab → ImGuiEx.BeginTabItem(label, flags)
             // throw stub(EzTabBar stub bug class),否則開設定視窗必崩。
             ImGuiEx.EzTabBar("TextAdvanceTab", null,
-                ("General config", TabConfig.Draw, null, true),
-                ("Target indicators", TabSplatoon.Draw, null, true),
-                ("Auto-enable", TabChars.Draw, null, true),
-                ("Per area config", TabTerritory.Draw, null, true),
+                ("General config".Loc(), TabConfig.Draw, null, true),
+                ("Target indicators".Loc(), TabSplatoon.Draw, null, true),
+                ("Auto-enable".Loc(), TabChars.Draw, null, true),
+                ("Per area config".Loc(), TabTerritory.Draw, null, true),
                 InternalLog.ImGuiTab(),
-                ("Debug", TabDebug.Draw, ImGuiColors.DalamudGrey3, true)
+                ("Debug".Loc(), TabDebug.Draw, ImGuiColors.DalamudGrey3, true)
                 );
         }
         ImGui.EndChild();
