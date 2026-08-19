@@ -81,8 +81,16 @@ public static unsafe class ExecUseEventItem
         var player = Svc.Objects.LocalPlayer;
         if (player == null) return false;
 
+        // AgentHUD.Instance() 走 CS 的 [Agent] 產生器(agentModule == null ? null : ...),
+        // UIModule 尚未建立或 HUD 代理人尚未配置時合法回 null。這支掛在 InventoryEventGrid 的
+        // PostDraw 上、每 200ms 跑一次,換區與登入流程都會經過,不能假設代理人一定活著。
+        // 解參考 null 的 AccessViolation 是 corrupted-state exception,try/catch 攔不到。
+        // fail-closed:取不到 HUD 就當作「附近沒有任務」,這一輪不使用任何任務道具。
+        var hud = AgentHUD.Instance();
+        if (hud == null) return false;
+
         var nearbyMarkerNames = new HashSet<string>();
-        foreach (ref var marker in AgentHUD.Instance()->MapMarkers.AsSpan())
+        foreach (ref var marker in hud->MapMarkers.AsSpan())
         {
             if (marker.TooltipString == null) continue;
             var name = marker.TooltipString->ToString();

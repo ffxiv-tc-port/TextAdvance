@@ -53,7 +53,17 @@ public static unsafe class Utils
 
     public static void GetEligibleMapMarkerLocationsAsync(Action<List<Vector3>> callback)
     {
-        var markers = AgentHUD.Instance()->MapMarkers.AsSpan().ToArray();
+        // AgentHUD.Instance() 走 CS 的 [Agent] 產生器(agentModule == null ? null : ...),
+        // UIModule 尚未建立或 HUD 代理人尚未配置時合法會回 null;解參考它是攔不到的 AccessViolation。
+        // 取不到就不啟動這次非精確導航(本方法原本就有「耗時過久則丟棄結果、不回呼」的路徑,
+        // 呼叫端不依賴 callback 必被呼叫)。
+        var hud = AgentHUD.Instance();
+        if (hud == null)
+        {
+            PluginLog.Warning("[TextAdvance] AgentHUD unavailable; skipping map marker scan");
+            return;
+        }
+        var markers = hud->MapMarkers.AsSpan().ToArray();
         var playerPos = Player.Object.Position;
         Task.Run(() =>
         {

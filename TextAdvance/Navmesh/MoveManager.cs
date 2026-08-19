@@ -32,17 +32,30 @@ public unsafe class MoveManager
     public void MoveToFlag()
     {
         if (!Player.Available) return;
-        if (AgentMap.Instance()->FlagMarkerCount == 0)
+
+        // AgentMap.Instance() 是 CS 的 [Agent] 產生器版本,展開後是
+        // `agentModule == null ? null : (AgentMap*)agentModule->GetAgentByInternalId(AgentId.Map)`
+        // —— 兩層都合法會回 null(UIModule 尚未建立、代理人尚未配置)。解參考 null 是
+        // AccessViolation,而 AVE 在 .NET Core 是 corrupted-state exception,try/catch 攔不到。
+        // Player.Available 只證明本地玩家物件在,不保證代理人模組已經建好。
+        // 取一次本地指標、判空後在同一次呼叫內重用(原本裸呼叫三次),不跨幀保存。
+        var agentMap = AgentMap.Instance();
+        if (agentMap == null)
         {
             DuoLog.Warning($"Flag is not set");
             return;
         }
-        if (AgentMap.Instance()->FlagMapMarkers[0].TerritoryId != Svc.ClientState.TerritoryType)
+        if (agentMap->FlagMarkerCount == 0)
+        {
+            DuoLog.Warning($"Flag is not set");
+            return;
+        }
+        if (agentMap->FlagMapMarkers[0].TerritoryId != Svc.ClientState.TerritoryType)
         {
             DuoLog.Warning($"Flag is in different zone than current");
             return;
         }
-        var m = AgentMap.Instance()->FlagMapMarkers[0];
+        var m = agentMap->FlagMapMarkers[0];
         var pos = P.NavmeshManager.PointOnFloor(new(m.XFloat, 1024, m.YFloat), false, 5);
         var iterations = 0;
         if (pos == null)
