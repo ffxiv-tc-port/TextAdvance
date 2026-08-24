@@ -88,7 +88,7 @@ internal static class TabConfig
                         C.MainConfig.RequestFillQualityPreference = RequestFillQualityPreference.NQ;
                     if (ImGui.Selectable("HQ", C.MainConfig.RequestFillQualityPreference == RequestFillQualityPreference.HQ))
                         C.MainConfig.RequestFillQualityPreference = RequestFillQualityPreference.HQ;
-                    if (ImGui.Selectable("Any", C.MainConfig.RequestFillQualityPreference == RequestFillQualityPreference.Any))
+                    if (ImGui.Selectable("Any".Loc(), C.MainConfig.RequestFillQualityPreference == RequestFillQualityPreference.Any))
                         C.MainConfig.RequestFillQualityPreference = RequestFillQualityPreference.Any;
                     ImGui.EndCombo();
                 }
