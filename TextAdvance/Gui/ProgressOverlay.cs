@@ -20,7 +20,7 @@ public class ProgressOverlay : EzOverlayWindow
         if (ImGui.IsWindowHovered())
         {
             ImGui.SetMouseCursor(ImGuiMouseCursor.Hand);
-            ImGui.SetTooltip("Right click to stop all tasks");
+            ImGui.SetTooltip("Right click to stop all tasks".Loc());
             if (ImGui.IsMouseClicked(ImGuiMouseButton.Right))
             {
                 S.EntityOverlay.TaskManager.Abort();
@@ -29,7 +29,7 @@ public class ProgressOverlay : EzOverlayWindow
         }
         var percent = 1f - (float)S.EntityOverlay.TaskManager.NumQueuedTasks / (float)S.EntityOverlay.TaskManager.MaxTasks;
         ImGui.PushStyleColor(ImGuiCol.PlotHistogram, EColor.Red);
-        ImGui.ProgressBar(percent, new(ImGui.GetContentRegionAvail().X, 20));
+        ImGui.ProgressBar(percent, sizeArg: new(ImGui.GetContentRegionAvail().X, 20));
         ImGui.PopStyleColor();
     }
 

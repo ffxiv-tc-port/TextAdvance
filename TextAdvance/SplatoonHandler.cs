@@ -11,7 +11,10 @@ namespace TextAdvance
             public static readonly uint[] ImportantSideInitiate = [71341, 71342];
             public static readonly uint[] SideProgress = [71223, 71225, 71224];
             public static readonly uint[] SideInitiate = [];
-            public static readonly string[] EventObjNameWhitelist = ["Destination", "指定地点", "Zielort"];
+            // 「指定地点」是簡中用字;台服(TC)的 EObjName 是「指定地點」(点/點),
+            // 7.20 EXD dump 的 EObjName 表實查(2000009 等多列)。少了這個字,
+            // ExecAutoInteract/EntityOverlay/Utils 在 DataId 不中時的後備判定在台服恆為 false。
+            public static readonly string[] EventObjNameWhitelist = ["Destination", "指定地点", "指定地點", "Zielort"];
             public static readonly uint[] EventObjWhitelist = [2010816, 2011073, 2011072, 2011071];
 
             public static class Map

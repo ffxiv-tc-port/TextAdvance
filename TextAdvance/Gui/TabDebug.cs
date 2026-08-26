@@ -5,6 +5,7 @@ using FFXIVClientStructs.FFXIV.Client.UI;
 using FFXIVClientStructs.FFXIV.Client.UI.Agent;
 using FFXIVClientStructs.FFXIV.Component.GUI;
 using TextAdvance.Executors;
+using Callback = ECommons.Automation.Callback;
 
 namespace TextAdvance.Gui;
 
@@ -71,16 +72,27 @@ internal static unsafe class TabDebug
         }
         if (ImGui.CollapsingHeader("Quest markers"))
         {
-            var markers = AgentHUD.Instance()->MapMarkers.AsSpan();
-            for (var i = 0; i < markers.Length; i++)
+            // 這個除錯分頁在角色選擇畫面也畫得出來,而 AgentHUD.Instance() 走 CS 的
+            // [Agent] 產生器(agentModule == null ? null : ...),那時候合法回 null。
+            // 「不知道」要在畫面上看得見,不要把它畫成空清單。
+            var hud = AgentHUD.Instance();
+            if (hud == null)
             {
-                var marker = markers[i];
-                if (ThreadLoadImageHandler.TryGetIconTextureWrap(marker.IconId, false, out var tex))
+                ImGuiEx.Text(ImGuiColors.DalamudGrey, "AgentHUD unavailable (?)");
+            }
+            else
+            {
+                var markers = hud->MapMarkers.AsSpan();
+                for (var i = 0; i < markers.Length; i++)
                 {
-                    ImGui.Image(tex.ImGuiHandle, tex.Size);
+                    var marker = markers[i];
+                    if (ThreadLoadImageHandler.TryGetIconTextureWrap(marker.IconId, false, out var tex))
+                    {
+                        ImGui.Image(tex.Handle, tex.Size);
+                    }
+                    ImGuiEx.Text($"{marker.IconId} / {marker.Position} / {Vector3.Distance(Player.Position, marker.Position)}");
+                    ImGui.Separator();
                 }
-                ImGuiEx.Text($"{marker.IconId} / {marker.X} / {marker.Y} / {marker.Z} / {Vector3.Distance(Player.Position, new(marker.X, marker.Y, marker.Z))}");
-                ImGui.Separator();
             }
         }
         if (ImGui.Button("copy target descriptor"))
@@ -98,7 +110,10 @@ internal static unsafe class TabDebug
         }
         if (ImGui.CollapsingHeader("Reward pick"))
         {
-            if (TryGetAddonByName<AtkUnitBase>("JournalResult", out var addon) && IsAddonReady(addon))
+            // 同 ExecPickReward:NodeList[7] 不能裸解參考,空指標是攔不到的 AccessViolationException。
+            if (TryGetAddonByName<AtkUnitBase>("JournalResult", out var addon) && IsAddonReady(addon)
+                && addon->UldManager.NodeList != null && addon->UldManager.NodeListCount > 7
+                && addon->UldManager.NodeList[7] != null)
             {
                 var canvas = addon->UldManager.NodeList[7];
                 var r = new ReaderJournalResult(addon);

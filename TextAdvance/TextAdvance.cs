@@ -45,6 +45,8 @@ public unsafe class TextAdvance : IDalamudPlugin
         Svc.Commands.RemoveHandler("/at");
         Safe(ExecSkipTalk.Shutdown);
         Safe(ExecPickReward.Shutdown);
+        Safe(ExecUseEventItem.Shutdown);
+        Safe(EzIpcFailureLog.Disable);
         ECommonsMain.Dispose();
         P = null;
     }
@@ -53,6 +55,14 @@ public unsafe class TextAdvance : IDalamudPlugin
     {
         P = this;
         ECommonsMain.Init(pluginInterface, this, Module.SplatoonAPI);
+        // 讓「呼叫了對方沒有的 IPC 方法」不再完全靜默。
+        // ⚠️ 這裡原本是寫進 InternalLog（ECommons 的 1000 筆環形緩衝區），
+        //    那**根本不會進 dalamud.log**，只有開 ECommons 的除錯分頁才看得到 ——
+        //    等於這道網一直是形同虛設的。改成走 Svc.Log 並加上節流。
+        EzIpcFailureLog.Enable();
+        Localization.Init(pluginInterface.UiLanguage is "tw" or "zh" or "zh-Hant" or "zh-Hans"
+            ? "ChineseTraditional"
+            : "English");
         new TickScheduler(delegate
         {
             EzConfig.Migrate<Config>();
@@ -64,15 +74,18 @@ public unsafe class TextAdvance : IDalamudPlugin
             Svc.Commands.AddHandler("/at", new CommandInfo(this.HandleCommand)
             {
                 ShowInHelp = true,
+                // 原本第一行結尾寫的是原始字串裡的字面 "\n" 兩個字元(原始字串不處理跳脫序列),
+                // 所以指令說明第一行實際上會印出反斜線 n。改成真正的換行。
                 HelpMessage = """
-                toggles TextAdvance plugin.\n/at y|yes|e|enable - turns on TextAdvance.
+                toggles TextAdvance plugin.
+                /at y|yes|e|enable - turns on TextAdvance.
                 /at n|no|d|disable - turns off TextAdvance.
                 /at c|config|s|settings - opens TextAdvance settings.
                 /at g - toggles visual quest target markers
                 /at mtq - move to the first available quest location, if present (requires navmesh integration to be enabled)
                 /at mtqstop - cancel all pending movement tasks
                 /at mtf - move to flag
-                """
+                """.Loc()
             });
             if (Svc.ClientState.IsLoggedIn)
             {
@@ -93,15 +106,10 @@ public unsafe class TextAdvance : IDalamudPlugin
             new EzTerritoryChanged(this.ClientState_TerritoryChanged);
             ExecSkipTalk.Init();
             ExecPickReward.Init();
+            ExecUseEventItem.Init();
             this.NavmeshManager = new();
             SingletonServiceManager.Initialize(typeof(ServiceManager));
-            EzIPC.OnSafeInvocationException += this.EzIPC_OnSafeInvocationException;
         });
-    }
-
-    private void EzIPC_OnSafeInvocationException(Exception obj)
-    {
-        InternalLog.Error($"IPC error: {obj}");
     }
 
     private void ClientState_TerritoryChanged(ushort obj)
@@ -222,10 +230,10 @@ public unsafe class TextAdvance : IDalamudPlugin
             ExecSkipTalk.IsEnabled = false;
             ExecPickReward.IsEnabled = false;
             ExecAutoSnipe.IsEnabled = false;
-            if (this.LoggedIn && Svc.ClientState.LocalPlayer != null)
+            if (this.LoggedIn && Svc.Objects.LocalPlayer != null)
             {
                 this.LoggedIn = false;
-                if (this.Config.AutoEnableNames.Contains(Svc.ClientState.LocalPlayer.Name.ToString() + "@" + Svc.ClientState.LocalPlayer.HomeWorld.ValueNullable?.Name.ToString()))
+                if (this.Config.AutoEnableNames.Contains(Svc.Objects.LocalPlayer.Name.ToString() + "@" + Svc.Objects.LocalPlayer.HomeWorld.ValueNullable?.Name.ToString()))
                 {
                     this.Enabled = true;
                     if (!C.NotifyDisableOnLogin)

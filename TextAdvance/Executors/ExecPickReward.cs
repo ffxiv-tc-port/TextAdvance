@@ -23,8 +23,29 @@ namespace TextAdvance.Executors
 
         private static void OnJournalResultSetup(AddonEvent type, AddonArgs args)
         {
-            var addon = (AtkUnitBase*)args.Addon;
-            var canvas = ((AtkComponentNode*)addon->UldManager.NodeList[7])->Component;
+            var addon = (AtkUnitBase*)args.Addon.Address;
+
+            // 🔴 NodeList[7] 是裸解參考:PostSetup 當下版面不一定已經建好,NodeList 可能是 null
+            // 或不足 8 格,取到的節點也可能是 null。讀空指標會丟出 AccessViolationException,
+            // 那是 corrupted-state exception,try/catch 與任何例外隔離都攔不到,只能事前擋。
+            // 讀不出來就這次不挑獎勵(維持原本「不動作」的安全方向),並留一行使用者回報得到的紀錄。
+            if (addon->UldManager.NodeList == null || addon->UldManager.NodeListCount <= 7)
+            {
+                PluginLog.Information("JournalResult: 節點清單尚未建好(NodeListCount 不足),這次不自動挑選獎勵。");
+                return;
+            }
+            var canvasNode = (AtkComponentNode*)addon->UldManager.NodeList[7];
+            if (canvasNode == null)
+            {
+                PluginLog.Information("JournalResult: 獎勵清單節點是空指標,這次不自動挑選獎勵。");
+                return;
+            }
+            var canvas = canvasNode->Component;
+            if (canvas == null)
+            {
+                PluginLog.Information("JournalResult: 獎勵清單節點還沒有 Component,這次不自動挑選獎勵。");
+                return;
+            }
             PluginLog.Information($"Component: {(nint)canvas:X16}");
             if (IsEnabled)
             {
@@ -110,7 +131,7 @@ namespace TextAdvance.Executors
             if (Player.Job.GetUpgradedJob().EqualsAny(Job.BRD, Job.DNC, Job.MCH)) return Lang.CofferOfAiming;
             if (Player.Job.GetUpgradedJob().EqualsAny(Job.DRG, Job.RPR)) return Lang.CofferOfMaiming;
             if (Player.Job.GetUpgradedJob().EqualsAny(Job.NIN, Job.VPR)) return Lang.CofferOfScouting;
-            if (Player.Object.ClassJob.Value.Role == 2) return Lang.CofferOfSlaying; //other melees
+            if (Player.Object.ClassJob.Value.Role == 2) return Lang.CofferOfStriking; //other melees; armour coffers for melee say "striking"/強襲, never "slaying"
             if (Player.Object.GetRole() == CombatRole.DPS) return Lang.CofferOfCasting; //only casters left
             return null; //doh/dol
         }
@@ -121,7 +142,7 @@ namespace TextAdvance.Executors
             if (Player.Object.GetRole() == CombatRole.Healer) return Lang.CofferOfHealing;
             if (Player.Job.GetUpgradedJob().EqualsAny(Job.BRD, Job.DNC, Job.MCH, Job.NIN, Job.VPR)) return Lang.CofferOfAiming;
             if (Player.Object.ClassJob.Value.Role == 3) return Lang.CofferOfCasting; //phys rangeds are excluded before
-            if (Player.Object.GetRole() == CombatRole.DPS) return Lang.CofferOfStriking; //only non-aiming melee left
+            if (Player.Object.GetRole() == CombatRole.DPS) return Lang.CofferOfSlaying; //only non-aiming melee left; accessory coffers for melee say "slaying"/強攻, never "striking"
             return null; //doh/dol
         }
 
@@ -138,9 +159,9 @@ namespace TextAdvance.Executors
                     index = i;
                     return true;
                 }
-                if (accessoryString != null && data[i].Name.ContainsAny(StringComparison.OrdinalIgnoreCase, gearString))
+                if (accessoryString != null && data[i].Name.ContainsAny(StringComparison.OrdinalIgnoreCase, accessoryString))
                 {
-                    PluginLog.Information($"Accessory string was {gearString.Print()}");
+                    PluginLog.Information($"Accessory string was {accessoryString.Print()}");
                     index = i;
                     return true;
                 }
@@ -153,10 +174,20 @@ namespace TextAdvance.Executors
                     possible.Add(i);
                 }
             }
-            if (possible.Count > 0)
+            // 只有一個裝備箱候選時沒有歧義,直接選它。
+            if (possible.Count == 1)
             {
-                index = possible[Random.Next(possible.Count)];
+                index = possible[0];
                 return true;
+            }
+            // 多個候選但職能字串一個都比不到:原本會「隨機挑一個裝備箱」,
+            // 在台服因為職能字串曾經只有英文而恆為 false,等於永遠亂選(坦克箱給法師),
+            // 而且完全靜默。改成放棄本規則並留下可辨識的紀錄,交給後面的規則處理。
+            if (possible.Count > 1)
+            {
+                PluginLog.Information($"Coffer rule: {possible.Count} coffer candidates but none matched the job strings " +
+                    $"(gear: {(gearString == null ? "<null>" : gearString.Print())} / accessory: {(accessoryString == null ? "<null>" : accessoryString.Print())}). " +
+                    $"Refusing to pick at random; falling through to the next reward rule.");
             }
             index = default;
             return false;

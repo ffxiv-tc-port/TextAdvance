@@ -32,17 +32,30 @@ public unsafe class MoveManager
     public void MoveToFlag()
     {
         if (!Player.Available) return;
-        if (AgentMap.Instance()->IsFlagMarkerSet == false)
+
+        // AgentMap.Instance() 是 CS 的 [Agent] 產生器版本,展開後是
+        // `agentModule == null ? null : (AgentMap*)agentModule->GetAgentByInternalId(AgentId.Map)`
+        // —— 兩層都合法會回 null(UIModule 尚未建立、代理人尚未配置)。解參考 null 是
+        // AccessViolation,而 AVE 在 .NET Core 是 corrupted-state exception,try/catch 攔不到。
+        // Player.Available 只證明本地玩家物件在,不保證代理人模組已經建好。
+        // 取一次本地指標、判空後在同一次呼叫內重用(原本裸呼叫三次),不跨幀保存。
+        var agentMap = AgentMap.Instance();
+        if (agentMap == null)
         {
             DuoLog.Warning($"Flag is not set");
             return;
         }
-        if (AgentMap.Instance()->FlagMapMarker.TerritoryId != Svc.ClientState.TerritoryType)
+        if (agentMap->FlagMarkerCount == 0)
+        {
+            DuoLog.Warning($"Flag is not set");
+            return;
+        }
+        if (agentMap->FlagMapMarkers[0].TerritoryId != Svc.ClientState.TerritoryType)
         {
             DuoLog.Warning($"Flag is in different zone than current");
             return;
         }
-        var m = AgentMap.Instance()->FlagMapMarker;
+        var m = agentMap->FlagMapMarkers[0];
         var pos = P.NavmeshManager.PointOnFloor(new(m.XFloat, 1024, m.YFloat), false, 5);
         var iterations = 0;
         if (pos == null)
@@ -110,8 +123,8 @@ public unsafe class MoveManager
         var obj = this.GetNearestMTQObject();
         if (obj != null)
         {
-            this.EnqueueMoveAndInteract(new(obj.Position, obj.DataId, false), 3f);
-            this.Log($"Precise nav: {obj.Name}/{obj.DataId:X8}");
+            this.EnqueueMoveAndInteract(new(obj.Position, obj.BaseId, false), 3f);
+            this.Log($"Precise nav: {obj.Name}/{obj.BaseId:X8}");
         }
         else
         {
@@ -166,7 +179,7 @@ public unsafe class MoveManager
                 var obj = data.GetIGameObject();
                 if (obj != null)
                 {
-                    S.EntityOverlay.TaskManager.Insert(() => this.InteractWithDataID(obj.DataId));
+                    S.EntityOverlay.TaskManager.Insert(() => this.InteractWithDataID(obj.BaseId));
                 }
             });
         }
@@ -211,7 +224,11 @@ public unsafe class MoveManager
         if (ActionManager.Instance()->GetActionStatus(ActionType.GeneralAction, 9) == 0)
         {
             var mount = C.Mount;
-            if (mount == 0 || !PlayerState.Instance()->IsMountUnlocked((uint)mount))
+            // C.Mount 是設定檔回讀的值，可能是負數或表外的 id。IsMountUnlocked 是原生呼叫，
+            // 對表外 id 的行為沒有驗證過（解鎖旗標是位元陣列，越界就是越界讀取），
+            // 所以先用 Mount 表把 id 驗過再送進去：查不到的一律當成「沒解鎖」，
+            // 直接走底下「隨機挑一隻已解鎖的」分支。原生面對的永遠是表內 id。
+            if (mount <= 0 || !Svc.Data.GetExcelSheet<Mount>().TryGetRow((uint)mount, out _) || !PlayerState.Instance()->IsMountUnlocked((uint)mount))
             {
                 var mounts = Svc.Data.GetExcelSheet<Mount>().Where(x => x.Singular != "" && PlayerState.Instance()->IsMountUnlocked(x.RowId));
                 if (mounts.Any())
@@ -281,8 +298,8 @@ public unsafe class MoveManager
                 if (obj != null)
                 {
                     data.Position = obj.Position;
-                    data.DataID = obj.DataId;
-                    this.Log($"Correction to MTQ object: {obj.Name}/{obj.DataId:X8}");
+                    data.DataID = obj.BaseId;
+                    this.Log($"Correction to MTQ object: {obj.Name}/{obj.BaseId:X8}");
                     this.MoveToPosition(data, distance);
                 }
                 else
@@ -294,8 +311,8 @@ public unsafe class MoveManager
                             if (Vector3.Distance(data.Position, x.Position) < 100f && x.ObjectKind.EqualsAny(ObjectKind.EventNpc | ObjectKind.EventObj) && x.IsTargetable)
                             {
                                 data.Position = x.Position;
-                                data.DataID = x.DataId;
-                                this.Log($"Correction to non-MTQ object: {x.Name}/{x.DataId:X8}");
+                                data.DataID = x.BaseId;
+                                this.Log($"Correction to non-MTQ object: {x.Name}/{x.BaseId:X8}");
                                 this.MoveToPosition(data, distance);
                                 break;
                             }
@@ -356,7 +373,7 @@ public unsafe class MoveManager
         if (Svc.Targets.Target != null)
         {
             var t = Svc.Targets.Target;
-            if (t.IsTargetable && t.DataId == dataID && Vector3.Distance(Player.Object.Position, t.Position) < 10f && !IsOccupied() && !Player.IsAnimationLocked && Utils.ThrottleAutoInteract())
+            if (t.IsTargetable && t.BaseId == dataID && Vector3.Distance(Player.Object.Position, t.Position) < 10f && !IsOccupied() && !Player.IsAnimationLocked && Utils.ThrottleAutoInteract())
             {
                 TargetSystem.Instance()->InteractWithObject(Svc.Targets.Target.Struct(), false);
                 return true;
@@ -366,7 +383,7 @@ public unsafe class MoveManager
         {
             foreach (var t in Svc.Objects)
             {
-                if (t.IsTargetable && t.DataId == dataID && Vector3.Distance(Player.Object.Position, t.Position) < 10f && !IsOccupied() && EzThrottler.Throttle("SetTarget"))
+                if (t.IsTargetable && t.BaseId == dataID && Vector3.Distance(Player.Object.Position, t.Position) < 10f && !IsOccupied() && EzThrottler.Throttle("SetTarget"))
                 {
                     Svc.Targets.Target = t;
                     return false;

@@ -115,7 +115,7 @@ public static unsafe class ExecAutoInteract
             {
                 Interact(x);
             }
-            else if (x.ObjectKind.EqualsAny(ObjectKind.EventObj, ObjectKind.Aetheryte) && x.IsTargetable && (Markers.EventObjWhitelist.Contains(x.DataId) || Markers.EventObjNameWhitelist.ContainsIgnoreCase(x.Name.ToString())))
+            else if (x.ObjectKind.EqualsAny(ObjectKind.EventObj, ObjectKind.Aetheryte) && x.IsTargetable && (Markers.EventObjWhitelist.Contains(x.BaseId) || Markers.EventObjNameWhitelist.ContainsIgnoreCase(x.Name.ToString())))
             {
                 Interact(x);
             }
@@ -161,13 +161,13 @@ public static unsafe class ExecAutoInteract
 
     private static void RecordInteractionWith(IGameObject obj)
     {
-        InteractedObjects.RemoveWhere(x => x.DataID == obj.DataId);
-        InteractedObjects.Add(new(obj.DataId));
+        InteractedObjects.RemoveWhere(x => x.DataID == obj.BaseId);
+        InteractedObjects.Add(new(obj.BaseId));
     }
 
     public static bool WasInteracted(IGameObject obj)
     {
         if (obj == null) return false;
-        return InteractedObjects.Contains(new(obj.DataId));
+        return InteractedObjects.Contains(new(obj.BaseId));
     }
 }

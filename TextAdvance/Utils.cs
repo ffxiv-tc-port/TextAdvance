@@ -53,7 +53,17 @@ public static unsafe class Utils
 
     public static void GetEligibleMapMarkerLocationsAsync(Action<List<Vector3>> callback)
     {
-        var markers = AgentHUD.Instance()->MapMarkers.AsSpan().ToArray();
+        // AgentHUD.Instance() 走 CS 的 [Agent] 產生器(agentModule == null ? null : ...),
+        // UIModule 尚未建立或 HUD 代理人尚未配置時合法會回 null;解參考它是攔不到的 AccessViolation。
+        // 取不到就不啟動這次非精確導航(本方法原本就有「耗時過久則丟棄結果、不回呼」的路徑,
+        // 呼叫端不依賴 callback 必被呼叫)。
+        var hud = AgentHUD.Instance();
+        if (hud == null)
+        {
+            PluginLog.Warning("[TextAdvance] AgentHUD unavailable; skipping map marker scan");
+            return;
+        }
+        var markers = hud->MapMarkers.AsSpan().ToArray();
         var playerPos = Player.Object.Position;
         Task.Run(() =>
         {
@@ -65,19 +75,19 @@ public static unsafe class Utils
                 var id = marker.IconId;
                 if (SplatoonHandler.Markers.Map.MSQ.Contains(id) || SplatoonHandler.Markers.Map.ImportantSideProgress.Contains(id))
                 {
-                    ret.Add(new(marker.X, marker.Y, marker.Z));
+                    ret.Add(marker.Position);
                 }
                 else if (SplatoonHandler.Markers.Map.MSQXZ.Contains(id))
                 {
-                    PluginLog.Debug($"Marker {new Vector3(marker.X, marker.Y, marker.Z)} is MSQXZ");
+                    PluginLog.Debug($"Marker {marker.Position} is MSQXZ");
                     try
                     {
                         PluginLog.Debug($"Trying to pathfind");
-                        var result = P.NavmeshManager.Pathfind(playerPos, new(marker.X, marker.Y, marker.Z), false).Result;
+                        var result = P.NavmeshManager.Pathfind(playerPos, marker.Position, false).Result;
                         if (result != null && result.Count > 0)
                         {
                             PluginLog.Debug($"Direct path found");
-                            ret.Add(new(marker.X, marker.Y, marker.Z));
+                            ret.Add(marker.Position);
                         }
                         else
                         {
@@ -93,9 +103,9 @@ public static unsafe class Utils
 
                     void FindIngoringHeight()
                     {
-                        var alt = P.NavmeshManager.PointOnFloor(new(marker.X, 1024, marker.Z), false, 5);
+                        var alt = P.NavmeshManager.PointOnFloor(new(marker.Position.X, 1024, marker.Position.Z), false, 5);
                         PluginLog.Debug($"Trying point on floor: result = {alt}");
-                        alt ??= P.NavmeshManager.NearestPoint(new(marker.X, marker.Y, marker.Z), 5, 5);
+                        alt ??= P.NavmeshManager.NearestPoint(marker.Position, 5, 5);
                         PluginLog.Debug($"Trying nearest point: result = {alt}");
                         if (alt != null)
                         {
@@ -122,7 +132,7 @@ public static unsafe class Utils
         {
             return true;
         }
-        else if (x.ObjectKind == ObjectKind.EventObj && x.IsTargetable && (Markers.EventObjWhitelist.Contains(x.DataId) || Markers.EventObjNameWhitelist.ContainsIgnoreCase(x.Name.ToString())))
+        else if (x.ObjectKind == ObjectKind.EventObj && x.IsTargetable && (Markers.EventObjWhitelist.Contains(x.BaseId) || Markers.EventObjNameWhitelist.ContainsIgnoreCase(x.Name.ToString())))
         {
             return true;
         }
@@ -136,7 +146,11 @@ public static unsafe class Utils
 
     public static string GetMountName(int id)
     {
-        return Svc.Data.GetExcelSheet<Mount>().GetRow((uint)id).Singular.ExtractText();
+        // id 來自設定檔的 C.Mount，可能跨版本殘留、也可能是負數哨兵值。
+        // 裸 GetRow 查無此列時 Lumina 會擲例外，而這裡的呼叫點包含設定視窗的 Draw
+        // 路徑，一擲就把整個視窗弄不見；查不到時直接把 id 顯示出來讓使用者看得見。
+        if(id < 0 || !Svc.Data.GetExcelSheet<Mount>().TryGetRow((uint)id, out var mount)) return $"?{id}";
+        return mount.Singular.ExtractText();
     }
 
     public static bool CanFly() => C.EnableFlight && S.Memory.IsFlightProhibited(S.Memory.FlightAddr) == 0;
