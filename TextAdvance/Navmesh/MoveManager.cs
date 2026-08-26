@@ -195,7 +195,15 @@ public unsafe class MoveManager
             }
             else
             {
-                if (Svc.Condition[ConditionFlag.Jumping]) EzThrottler.Throttle("Jump", 500, true);
+                if (Svc.Condition[ConditionFlag.Jumping])
+                {
+                    // 上游 1c07b91「fix manual fly mode」:起飛的動作是「跳躍中再按一次跳躍」。
+                    // 原本在 Jumping 時只重設節流、不送指令,等於把起飛的那一按吃掉了。
+                    // GeneralAction #2 台服=「跳躍」,名稱從表讀,不是寫死的字串;
+                    // rethrottle 已把 500ms 窗重設,所以下面那個 Throttle 這幀必為 false,不會連送兩次。
+                    EzThrottler.Throttle("Jump", 500, true);
+                    Chat.Instance.ExecuteCommand($"/generalaction \"{Utils.GetGeneralActionName(2)}\"");
+                }
                 if (EzThrottler.Throttle("Jump"))
                 {
                     Chat.Instance.ExecuteCommand($"/generalaction \"{Utils.GetGeneralActionName(2)}\"");
