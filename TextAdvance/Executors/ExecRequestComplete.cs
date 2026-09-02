@@ -7,16 +7,22 @@ namespace TextAdvance.Executors;
 
 internal static unsafe class ExecRequestComplete
 {
-    private static ulong RequestAllow = 0;
+    private static long RequestAllow = 0;
     internal static void Tick()
     {
         if (TryGetAddonByName<AtkUnitBase>("Request", out var addon) && IsAddonReady(addon))
         {
+            // 🔴 這個「開窗後先等 4 幀」原本數的是 UiBuilder.FrameCount,而那個計數器在外掛 UI 被隱藏時
+            //    完全停止前進(Dalamud 的 ToggleUiHideDuringCutscenes 預設是開的 ⇒ 過場動畫中必定凍結),
+            //    於是這 4 幀永遠等不完、交納永不送出。改用 AddonPressGuard 自己掛在原生 Framework::Tick
+            //    上的時鐘,不經過繪製路徑,UI 隱不隱藏都照跑。理由詳見 AddonPressGuard.CurrentFrame。
+            //    📌 RequestAllow 的 0 仍可安全當「還沒開始等」的哨兵:CurrentFrame 單調不減且非負,
+            //    CurrentFrame + 4 至少是 4。
             if (RequestAllow == 0)
             {
-                RequestAllow = Svc.PluginInterface.UiBuilder.FrameCount + 4;
+                RequestAllow = AddonPressGuard.CurrentFrame + 4;
             }
-            if (Svc.PluginInterface.UiBuilder.FrameCount < RequestAllow) return;
+            if (AddonPressGuard.CurrentFrame < RequestAllow) return;
             var m = new AddonMaster.Request(addon);
             if (m.IsHandOverEnabled && m.IsFilled)
             {

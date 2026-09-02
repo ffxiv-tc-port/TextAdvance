@@ -72,6 +72,8 @@ internal static class AddonPressGuard
     /// 🔑 這不是節流 —— 真正的防護是「同一扇窗只按一次」,這個值只是防死鎖的逃生口。
     /// 60 幀(60fps 下約 1 秒)遠遠大於「關閉中的那幾幀」,補按永遠不會落在危險窗口內。
     /// 用幀數而不是毫秒:危險窗口本來就是以幀計的,遊戲卡頓時兩者一起拉長。
+    /// 📌 數的是 <see cref="CurrentFrame"/>(守衛自己掛在 <c>Framework::Tick</c> 上的時鐘),
+    /// 不是 <c>UiBuilder.FrameCount</c>(那個在過場/隱藏 UI 時會凍結,理由見 <see cref="CurrentFrame"/>)。
     /// </remarks>
     internal const int RePressEscapeFrames = 60;
 
@@ -82,6 +84,7 @@ internal static class AddonPressGuard
     /// <remarks>
     /// 🔑 這類窗走逃生口是常態(那才是翻到下一頁的方式),逃生口長度直接決定節奏。
     /// 關閉中的危險窗口實測 &lt;10 幀,15 幀不落在裡面;每頁 +0.25s 幾乎無感(2026-09-02 使用者裁決)。
+    /// 📌 同樣數 <see cref="CurrentFrame"/>:過場動畫裡的對話正是靠這個時鐘才翻得動頁。
     /// ⚠️ 判準刻意<b>不</b>用「文字變了」當翻頁證據:關閉中文字會讀壞(U+FFFD)。
     /// </remarks>
     internal const int RoutineRePressEscapeFrames = 15;
@@ -110,7 +113,62 @@ internal static class AddonPressGuard
     private static readonly List<string> EmptyKeysBuf = [];
     private static readonly List<string> LifecycleEmptyKeysBuf = [];
 
-    private static long CurrentFrame => (long)Svc.PluginInterface.UiBuilder.FrameCount;
+    /// <summary>守衛自己的幀時鐘:由 <c>Svc.Framework.Update</c>(原生 <c>Framework::Tick</c>)每個遊戲幀遞增。</summary>
+    /// <remarks>
+    /// 🔴🔴 這裡刻意<b>不</b>用 <c>Svc.PluginInterface.UiBuilder.FrameCount</c> —— 那個計數器
+    /// <b>在外掛 UI 被隱藏時完全停止前進</b>:本 pin 的 <c>UiBuilder.OnDraw</c> 判定「使用者隱藏 UI /
+    /// <b>過場動畫中</b> / GPose」三者任一成立時<b>直接 return</b>,而 <c>FrameCount++</c> 寫在那個
+    /// return <b>之後</b>;其中過場那條的開關 <c>ToggleUiHideDuringCutscenes</c> <b>預設是開的</b>,
+    /// 而本外掛沒有設定任何 <c>DisableCutsceneUiHide</c>/<c>DisableAutomaticUiHide</c> 去豁免。
+    /// <para>
+    /// ⇒ 用它當時鐘的話,過場中時鐘凍結在某一格 F,<c>frame - pressedAt</c> 恆等於 0、逃生口<b>永遠等不完</b>,
+    /// 而按下點照樣每幀被叫到(<c>ExecSkipTalk</c> 掛在 <c>AddonLifecycle PostUpdate</c>,那是原生
+    /// <c>AtkUnitBase::Update</c> 的 detour,與 <c>OnDraw</c> 完全無關)⇒ 過場中每場對話只會被自動推進
+    /// <b>第一頁</b>,之後永久卡住,而且三條解除點全數無效(輪詢看到窗還在不解除;同一場對話翻頁不觸發
+    /// PreFinalize/PostSetup;<see cref="OnLifecycle"/> 的同幀豁免 <c>pressedAt >= frame</c> 在凍結時恆成立)。
+    /// </para>
+    /// <para>
+    /// 📌 兩個時鐘在<b>沒被隱藏</b>的正常狀況下都是「每個遊戲幀 +1」(遊戲每 tick 出一張畫面),
+    /// 所以 <see cref="RePressEscapeFrames"/>/<see cref="RoutineRePressEscapeFrames"/> 的幀數語意不變,
+    /// <b>不需要跟著調整</b>;差別只在「被隱藏時舊的會停、新的不會」。
+    /// </para>
+    /// <para>
+    /// ⚙️ 遞增點落在 <c>Framework.Update</c> 的派送清單裡,而本 pin 的 <c>Framework::Tick</c> detour 是
+    /// <b>先</b>派送 Dalamud 的 Update 事件、<b>再</b>跑遊戲的 tick 本體(<c>AtkUnitBase::Update</c> 也在裡面)。
+    /// ⚠️ 本守衛的遞增委派是在 <c>TextAdvance.Tick</c> 的委派<b>之後</b>才被加進那份清單的,所以同一個遊戲幀裡
+    /// <b>Framework 路徑</b>(各 <c>Exec*.Tick</c>)讀到的值比 <b>AddonLifecycle 路徑</b>
+    /// (<c>ExecSkipTalk.Click</c>、<see cref="OnLifecycle"/>)<b>少 1</b>。這個差是固定的,而所有比較都是
+    /// 同一條路徑內部的差值,所以無害:逃生口在各自路徑內仍然剛好是 15/60 個遊戲幀。
+    /// <see cref="OnLifecycle"/> 的同幀豁免只服務 <c>ExecSkipTalk</c>(按下與豁免都在 AddonLifecycle 路徑、
+    /// 讀到同一個值),仍然成立;Framework 路徑的按下則一律先經過沒有豁免的 <c>PreFinalize</c> 清掉記號,
+    /// 位址重用的情境不受影響。
+    /// </para>
+    /// </remarks>
+    private static long frameCount;
+
+    /// <summary>幀時鐘是否已經掛上(<see cref="EnsureClock"/> 冪等)。</summary>
+    private static bool clockRunning;
+
+    /// <summary>守衛的幀時鐘;<b>單調不減</b>,只做差值與大小比較。</summary>
+    internal static long CurrentFrame => frameCount;
+
+    /// <summary>掛上幀時鐘(冪等)。</summary>
+    /// <remarks>
+    /// 🔴 從<b>兩個</b>互相獨立的地方叫:<see cref="Tick"/> 的第一行(每幀無條件、外掛一載入就在跑)
+    /// 與 <see cref="EnsureWatching"/>(任何按下點的必經之路)。兩條同時斷掉時鐘才會停,
+    /// 而那時也已經沒有人在按東西了。
+    /// ⚠️ 特別是 <see cref="CurrentFrame"/> 有<b>不經過 <see cref="TryPressOnce"/> 的讀者</b>
+    /// (<c>ExecRequestComplete</c> 開窗後的等待):時鐘若只在按下路徑上懶啟動,那個讀者會永遠讀到 0、
+    /// 卡死在自己的等待條件裡,連帶永遠不會走到按下路徑去啟動時鐘。
+    /// </remarks>
+    private static void EnsureClock()
+    {
+        if(clockRunning) return;
+        clockRunning = true;
+        Svc.Framework.Update += OnFrameworkUpdate;
+    }
+
+    private static void OnFrameworkUpdate(IFramework framework) => frameCount++;
 
     /// <summary>
     /// 從窗上讀出來的文字含 U+FFFD(替換字元)= 這幾幀窗的記憶體正在變動(多半是關閉中),
@@ -205,6 +263,9 @@ internal static class AddonPressGuard
     /// </remarks>
     internal static void Tick()
     {
+        // 🔴 時鐘要掛在「沒有記號就回頭」那一行之前:掛在後面的話,沒有窗被記著時時鐘就停住,
+        //    等於換了個地方重現原本的凍結。
+        EnsureClock();
         if(Slots.Count == 0) return;
         NamesBuf.Clear();
         EmptyKeysBuf.Clear();
@@ -245,6 +306,12 @@ internal static class AddonPressGuard
     /// <summary>外掛卸載時硬拆所有監聽器(不留指向本組件的委派)並清掉所有記號。</summary>
     internal static void ForceTeardown()
     {
+        if(clockRunning)
+        {
+            Svc.Framework.Update -= OnFrameworkUpdate;
+            clockRunning = false;
+        }
+        // frameCount 刻意不歸零:歸零會讓殘留記號的 pressedAt 大於當下幀而算出負的差值。
         foreach(var (addonName, handler) in Watchers)
         {
             Svc.AddonLifecycle.UnregisterListener(AddonEvent.PreFinalize, addonName, handler);
@@ -267,6 +334,7 @@ internal static class AddonPressGuard
     /// <summary>第一次守護某個窗名時掛上解除封鎖用的監聽器;掛上之後就不再拆(只在 <see cref="ForceTeardown"/> 拆)。</summary>
     private static void EnsureWatching(string addonName)
     {
+        EnsureClock();
         if(Watchers.ContainsKey(addonName)) return;
         IAddonLifecycle.AddonEventDelegate handler = (type, args) => OnLifecycle(addonName, type, args);
         Watchers[addonName] = handler;
