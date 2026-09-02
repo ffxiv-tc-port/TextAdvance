@@ -3,6 +3,7 @@ using ECommons.Throttlers;
 using ECommons.UIHelpers.AddonMasterImplementations;
 using FFXIVClientStructs.FFXIV.Client.UI;
 using FFXIVClientStructs.FFXIV.Component.GUI;
+using TextAdvance.Helpers;
 using Callback = ECommons.Automation.Callback;
 
 namespace TextAdvance.Executors;
@@ -21,19 +22,28 @@ internal static unsafe class ExecConfirmCutsceneSkip
         // 上游自己在 06b4995 修正成「提示比 SkipCutsceneStr、選項比 YesStr」,這裡直接採用修正後的版本。
         if(!TryGetAddonMaster<AddonMaster.SelectString>(out var m) || !m.IsAddonReady) return;
 
+        // 🔴 讀到 U+FFFD = 窗的記憶體正在變動(多半是關閉中),這一幀連比對都不做。
+        var prompt = m.Text;
+        if(AddonPressGuard.TextIsUnstable("SelectString", prompt)) return;
+
         // 🔴 這一關是「這個 SelectString 到底是不是跳過過場的確認框」的身分證明。
         // m.Text 讀的是 Node 2 的提示文字(取不到時 ECommons 回空字串,不會崩)。
         // 比對不中就完全不動作 —— 身分沒確認之前絕不能在別人的選單上按東西。
-        if(!m.Text.ContainsAny(StringComparison.OrdinalIgnoreCase, Lang.SkipCutsceneStr)) return;
+        if(!prompt.ContainsAny(StringComparison.OrdinalIgnoreCase, Lang.SkipCutsceneStr)) return;
 
         var entries = m.Entries;
         if(entries.Length == 0) return;
 
         foreach(var x in entries)
         {
-            if(Lang.YesStr.Contains(x.Text))
+            var text = x.Text;
+            if(AddonPressGuard.TextIsUnstable("SelectString", text)) return;
+            if(Lang.YesStr.Contains(text))
             {
-                if(EzThrottler.Throttle("SkipCutsceneConfirm"))
+                // 守衛放在節流之後、按下之前:同一扇確認框(位址)只選一次,回答後關閉中的那幾幀
+                // IsAddonReady 三關仍全過、500ms 節流也可能已放行,再 Fire 就是攔不到的 AccessViolation。
+                // 與下面的台服退路共用同一把 key(窗名 SelectString、不帶參數),兩條按法互相看得見。
+                if(EzThrottler.Throttle("SkipCutsceneConfirm") && AddonPressGuard.TryPressOnce("SelectString", (nint)m.Base, "SkipCutsceneConfirm"))
                 {
                     x.Select();
                 }
@@ -53,7 +63,7 @@ internal static unsafe class ExecConfirmCutsceneSkip
             foreach(var x in entries) texts.Add(x.Text);
             PluginLog.Information($"[TextAdvance] 跳過過場確認框:選項文字都不在 Lang.YesStr 內,退回選第 0 項。實際選項=[{string.Join(" | ", texts)}]");
         }
-        if(EzThrottler.Throttle("SkipCutsceneConfirm"))
+        if(EzThrottler.Throttle("SkipCutsceneConfirm") && AddonPressGuard.TryPressOnce("SelectString", (nint)m.Base, "SkipCutsceneConfirm"))
         {
             entries[0].Select();
         }

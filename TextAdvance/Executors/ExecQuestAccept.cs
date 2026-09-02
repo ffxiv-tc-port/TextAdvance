@@ -1,6 +1,7 @@
 ﻿using ECommons.Automation.UIInput;
 using ECommons.Throttlers;
 using FFXIVClientStructs.FFXIV.Component.GUI;
+using TextAdvance.Helpers;
 
 namespace TextAdvance.Executors;
 
@@ -17,7 +18,9 @@ internal static unsafe class ExecQuestAccept
             var button = addon->GetComponentButtonById(44);
             if (IsComponentEnabled(button))
             {
-                if (EzThrottler.Throttle("JournalAcceptAccept"))
+                // 守衛放在節流之後、按下之前:「接受」按下即關 JournalAccept,同一扇(位址)只按一次 —— 關閉中那幾幀
+                // IsAddonReady 與按鈕啟用檢查都仍過,再送 ClickAddonButton 就是攔不到的 AccessViolation。
+                if (EzThrottler.Throttle("JournalAcceptAccept") && AddonPressGuard.TryPressOnce("JournalAccept", (nint)addon, "JournalAccept.Accept"))
                 {
                     PluginLog.Debug("Accepting quest");
                     button->ClickAddonButton(addon);

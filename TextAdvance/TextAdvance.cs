@@ -12,6 +12,7 @@ using ECommons.SplatoonAPI;
 using FFXIVClientStructs.FFXIV.Component.GUI;
 using Lumina.Excel.Sheets;
 using TextAdvance.Executors;
+using TextAdvance.Helpers;
 using TextAdvance.Navmesh;
 using TextAdvance.Services;
 
@@ -46,6 +47,7 @@ public unsafe class TextAdvance : IDalamudPlugin
         Safe(ExecSkipTalk.Shutdown);
         Safe(ExecPickReward.Shutdown);
         Safe(ExecUseEventItem.Shutdown);
+        Safe(AddonPressGuard.ForceTeardown);
         Safe(EzIpcFailureLog.Disable);
         ECommonsMain.Dispose();
         P = null;
@@ -220,6 +222,8 @@ public unsafe class TextAdvance : IDalamudPlugin
     {
         try
         {
+            // 按壓守衛的輪詢解除點:放最前面、不受任何開關限制(理由見 AddonPressGuard.Tick)。
+            AddonPressGuard.Tick();
             while (QueuedSplatoonElements.TryDequeue(out var element))
             {
                 if (Splatoon.IsConnected() && element.IsValid())
