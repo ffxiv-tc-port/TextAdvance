@@ -55,7 +55,7 @@ namespace TextAdvance.Helpers;
 /// <para>
 /// 🔑 逃生口防死鎖:永久封鎖會讓 <c>LegacyTaskManager</c>(<c>AbortOnTimeout=true</c>)的任務卡到逾時、
 /// 清掉整條佇列。單答終結窗取 <see cref="RePressEscapeFrames"/>(60 幀,遠大於關閉所需),走到代表
-/// 「按了卻沒關掉」,寫 <c>Information</c>(使用者跑 LogLevel 2);Talk 類多次互動窗取
+/// 「按了卻沒關掉」,寫 <c>Information</c>(使用者跑 LogLevel 1);Talk 類多次互動窗取
 /// <see cref="RoutineRePressEscapeFrames"/>(15 幀),走逃生口是翻頁的常態,寫 <c>Debug</c> 不洗版。
 /// </para>
 /// <para>
@@ -323,7 +323,7 @@ internal static class AddonPressGuard
         Slots.Clear();
     }
 
-    /// <summary>被擋那一幀的診斷:單答窗寫 Information(使用者跑 LogLevel 2)、每扇窗 1 秒節流;多次互動窗的等待是常態,不寫。</summary>
+    /// <summary>被擋那一幀的診斷:單答窗寫 Information(使用者跑 LogLevel 1)、每扇窗 1 秒節流;多次互動窗的等待是常態,不寫。</summary>
     private static void LogHold(string addonName, nint addon, string tag, bool routine)
     {
         if(routine) return;
