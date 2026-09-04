@@ -1,52 +1,35 @@
 ﻿# TextAdvance
-Quest speedrunning assistance tool. Automatically confirm quest acceptation and completion, skip subtitles, cutscenes and most of prompts. 
-## Become a Supporter!
-If you like TextAdvance, please consider becoming a supporter on Patreon or via other means! This will help me to continue updating TextAdvance and work on new plugins and features and you will receive benefits such as early progress updates, priority support, prioritized feature requests, early testing builds and private tools. 
-- [Subscribe on Patreon (Starts from $1)](https://subscribe.nightmarexiv.com/) - eligible for Discord role
-- [Donate Litecoin, Bitcoin, Tether or other crypto](https://crypto.nightmarexiv.com/) - eligible for Discord role
-- [One-time donation on Ko-Fi](https://ko-fi.com/nightmarexiv)
 
-### Also:
-- [Explore other plugins I maintain or contributed to](https://explore.nightmarexiv.com/)
-- [Join NightmareXIV Discord server to receive fast support and pings about plugin updates](https://discord.gg/m8NRt4X8Gf)
-## Description
+跑任務加速小工具。自動確認接取／完成任務、跳過字幕與過場動畫、自動處理各種確認提示。
 
-<p align="center"><img src="https://raw.githubusercontent.com/NightmareXIV/TextAdvance/master/meta/image.png"></p>
+## 功能
 
-Primary functions:
-- Automatically skip quest subtitles
-- Automatically skip cutscenes (only ones that can be normally skipped)
-- Automatically confirm quests acception and completion
-- Automatically interact with nearby quest entities
-- Automatically pick most valuable rewards
-- Automatically fill and confirm request popups
-- Configurable buttons to temporarily pause or enable plugin.
+- 自動跳過任務對話字幕
+- 自動跳過過場動畫（僅限本來就能跳過的）
+- 自動確認任務接取與完成
+- 自動與附近的任務相關物件互動
+- 自動挑選最有價值的任務獎勵
+- 自動填寫並確認「委託」（Request）視窗
+- 可設定按住即可暫時停用／啟用插件的按鍵
 
-Additional functions:
-- Integration with Splatoon, which highlights nearby quest-related entities. You can get Splatoon from Puni.sh repo `https://love.puni.sh/ment.json`. [Read how to install Splatoon here.](https://github.com/PunishXIV/Splatoon?tab=readme-ov-file#installation)
-- Integration with vnavmesh, which upon using `/at mtq` will attempt to build a path to nearest quest entity and `/at mtf` which will attempt to build a path to flag on map. You can get vnavmesh from third party repo `https://puni.sh/api/repository/veynrepo`
+## 整合
 
-**TextAdvance automatically disables itself every time you log out and requires you to type `/at` command whenever you want to reenable it.** You can override this behavior by enabling "Don't auto-disable plugin on logout" option.
+- **Splatoon**：在地圖上標示附近的任務相關物件
+- **vnavmesh**：`/at mtq` 自動導航到最近的任務物件；`/at mtf` 自動導航到地圖旗標
 
-Alternatively, you can configure characters on which you want it to automatically enable upon log in.
-## This plugin is in development
-This means that there are still features that I would like to implement in future or features that I would like to enhance, as well as that I'm accepting suggestions and feature requests.
-## Installation
-1. Install [FFXIVQuickLauncher](https://github.com/goatcorp/FFXIVQuickLauncher?tab=readme-ov-file#xivlauncher-----) and enable Dalamud in it's settings. You have to run the game through FFXIVQuickLauncher in order for any of these plugins to work.
-2. Open Dalamud settings by typing `/xlsettings` in game chat.
-3. Go to "Experimental" tab.
-4. Find "Custom Plugin Repositories" section, agree with listed terms if needed and paste the following link into text input field: `https://github.com/NightmareXIV/MyDalamudPlugins/raw/main/pluginmaster.json`
-5. Click "Save" button.
+## 使用
 
-You should now have NightmareXIV plugins available in your plugin installer. <br>
-Open plugin installer by typing `/xlplugins` in game chat, go to "Available plugins" section and search for a plugin you would like to install.
+- **每次登出會自動停用**，需再次輸入 `/at` 才會重新啟用（可在設定中關閉此行為，或設定特定角色登入時自動啟用）
+- `/at enable`／`/at disable` 手動切換
+- `/at mtq`、`/at mtf` 見上方整合說明
 
-![image](https://github.com/NightmareXIV/MyDalamudPlugins/blob/main/meta/install/installer.png?raw=true)
+## 安裝
 
-## Support
-Join NightmareXIV Discord server to receive support for this plugin: https://discord.gg/m8NRt4X8Gf
-[![](https://dcbadge.vercel.app/api/server/m8NRt4X8Gf)](https://discord.gg/m8NRt4X8Gf)
+在 Dalamud 設定的「自訂插件庫」加入
+`https://raw.githubusercontent.com/ffxiv-tc-port/DalamudPluginsTC/main/repo.json` 並啟用，
+再從插件列表安裝。
 
-The server operates on a ticket-based system. Please create a ticket and describe your issue.
-Additionally, you may create an issue in the repository. Reply time for tickets may be significantly longer than on Discord, however, the issue does not have any risks to be lost.
-(Basically, if you want to report a critical bug or receive help, prefer Discord, if you want to suggest feature or report non-critical bug, prefer Github)
+## 作者與支援
+
+原作 [NightmareXIV](https://github.com/NightmareXIV/TextAdvance)。
+本分支為 [ffxiv-tc-port](https://github.com/ffxiv-tc-port) 針對台服官方繁中版維護的移植版。
