@@ -19,7 +19,11 @@
             else
             {
                 ImGuiEx.TextWrapped(EColor.Red, "You do not have Splatoon installed.".Loc());
-                if (ImGui.Button("Get Splatoon".Loc())) ShellStart("https://puni.sh/plugin/Splatoon");
+                // 這裡絕對不能開國際服的外掛庫：那裡的 Splatoon 內部名與台服版完全相同，
+                // 裝進去會是 API15/net10 的版本，在台服的 API13 Dalamud 上載不起來。
+                // 用 GitHub 說明頁而不是 repo.json 本身：這個按鈕是用瀏覽器開網頁，
+                // 直接開一份 raw json 對使用者沒有任何指引作用。
+                if (ImGui.Button("Get Splatoon".Loc())) ShellStart("https://github.com/ffxiv-tc-port/DalamudPluginsTC");
             }
             ImGui.Checkbox("Display quest target indicators".Loc(), ref C.MainConfig.QTIQuestEnabled);
             ImGui.ColorEdit4("Quest target indicator color".Loc(), ref C.MainConfig.QTIQuestColor, ImGuiColorEditFlags.NoInputs);
