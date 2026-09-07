@@ -25,6 +25,16 @@ public unsafe class TextAdvance : IDalamudPlugin
     internal bool InCutscene = false;
     internal bool WasInCutscene = false;
     internal bool Enabled = false;
+    /// <summary>
+    /// <c>IsEnabled(pure: true)</c> 的每幀快照,由 <see cref="Tick"/>(framework 執行緒)寫入,
+    /// 供 IPC 端點 <c>IsEnabled</c> 在<b>呼叫端的執行緒</b>上讀取。
+    /// <br/><br/>
+    /// 🔴 存在的理由:<see cref="IsEnabled"/> 會走到 <see cref="IsEnableButtonHeld"/>,那裡讀
+    /// <c>ImGui.GetIO()</c> 與 <c>CSFramework.Instance()-&gt;WindowInactive</c>,兩者都不能從
+    /// 別的執行緒碰。<c>volatile</c> 只是保證讀到的是最近一次寫入的值(bool 的讀寫本身就是原子的),
+    /// 不需要鎖。
+    /// </summary>
+    internal volatile bool IsEnabledPureSnapshot = false;
     private bool CanPressEsc = false;
     //static string[] HandOverStr = { "Hand Over" };
     private Config Config;
@@ -224,6 +234,17 @@ public unsafe class TextAdvance : IDalamudPlugin
         {
             // 按壓守衛的輪詢解除點:放最前面、不受任何開關限制(理由見 AddonPressGuard.Tick)。
             AddonPressGuard.Tick();
+            // IPC 端點 IsEnabled 讀的每幀快照。單獨包 try 的理由:原本 Tick 只在 !Locked 時才會
+            // 走到 IsEnabled,這裡改成每幀無條件呼叫,不能讓它新增一條「Locked 時 Tick 整個中斷」
+            // 的路徑 —— 快照拿不到就維持上一幀的值,其餘邏輯照跑。
+            try
+            {
+                this.IsEnabledPureSnapshot = this.IsEnabled(true);
+            }
+            catch (Exception e)
+            {
+                PluginLog.Debug($"IsEnabled 快照更新失敗,沿用上一幀的值:{e.Message}");
+            }
             while (QueuedSplatoonElements.TryDequeue(out var element))
             {
                 if (Splatoon.IsConnected() && element.IsValid())

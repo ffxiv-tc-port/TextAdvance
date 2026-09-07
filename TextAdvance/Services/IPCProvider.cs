@@ -12,6 +12,41 @@ public class IPCProvider
         EzIPC.Init(this);
     }
 
+    /// <summary>
+    /// 把端點的實際工作放到 framework 執行緒上跑。
+    /// <br/><br/>
+    /// 🔴 IPC 端點跑在<b>呼叫端的執行緒</b>上。下面這些端點會走到
+    /// <c>Player.Object.Position</c>(<c>IObjectTable</c> 的包裝是每格重用、Address 就地改寫的,
+    /// 從別的執行緒讀等於對隨時可能被換掉的原生指標解參考)、
+    /// 會對 <c>TaskManager</c> 的兩個裸 <c>List</c> 做 Enqueue/Abort(framework 執行緒同時在
+    /// 走訪它們),還會往 vnavmesh 打 IPC —— 三種都不能在別人的執行緒上做。
+    /// <br/><br/>
+    /// 已經在 framework 執行緒時<b>就地執行</b>:例外照樣往呼叫端擲,回傳值與時序與改動前
+    /// 完全相同(Questionable、AutoDuty 這些從自己的 framework tick 打進來的呼叫走這條)。
+    /// 在別的執行緒時排到下一次 Framework.Update 且<b>不等待</b> —— 這幾個端點回傳型別都是
+    /// <c>void</c>,「不等待」不改變任何回傳語意,只是把生效時間往後挪最多一幀。
+    /// 不等待也避免了「呼叫端持著鎖同步等 framework 執行緒」這種死結形狀。
+    /// </summary>
+    private static void RunOnFramework(string endpointName, Action action)
+    {
+        if (Svc.Framework.IsInFrameworkUpdateThread)
+        {
+            action();
+            return;
+        }
+        _ = Svc.Framework.RunOnFrameworkThread(() =>
+        {
+            try
+            {
+                action();
+            }
+            catch (Exception e)
+            {
+                PluginLog.Error($"[TextAdvance] IPC {endpointName} 在 framework 執行緒上執行失敗:{e}");
+            }
+        });
+    }
+
     [EzIPC]
     public bool EnableExternalControl(string requester, ExternalTerritoryConfig config)
     {
@@ -42,7 +77,21 @@ public class IPCProvider
         return this.Requester != null && this.ExternalConfig != null;
     }
 
-    [EzIPC] public bool IsEnabled() => P.IsEnabled(true);
+    /// <summary>
+    /// 🔴 這個端點跑在<b>呼叫端的執行緒</b>上(CallGate 不做 marshal),而 Questionable 與
+    /// AutoDuty 會高頻查詢它。<c>P.IsEnabled()</c> 會走到 <c>IsEnableButtonHeld()</c>,
+    /// 那裡讀 <c>ImGui.GetIO()</c>(解參考 imgui 的全域 context)與
+    /// <c>CSFramework.Instance()-&gt;WindowInactive</c>(原生靜態指標),兩個都不是可以從
+    /// 別的執行緒碰的東西 —— 而 AccessViolation 在 .NET Core 是 corrupted-state exception,
+    /// try/catch 完全攔不到。
+    /// <br/><br/>
+    /// 這裡刻意<b>不</b>用 RunOnFrameworkThread 同步等待:高頻布林查詢等一幀會把呼叫端的
+    /// 執行緒卡到下一次 Framework.Update。改成讀 framework 執行緒每幀更新的
+    /// <c>TextAdvance.IsEnabledPureSnapshot</c>,最舊差一幀。
+    /// 呼叫端本來就在 framework 執行緒上時(絕大多數情況)走原路,回傳值與時序不變。
+    /// </summary>
+    [EzIPC]
+    public bool IsEnabled() => Svc.Framework.IsInFrameworkUpdateThread ? P.IsEnabled(true) : P.IsEnabledPureSnapshot;
     [EzIPC] public bool GetEnableQuestAccept() => C.GetEnableQuestAccept();
     [EzIPC] public bool GetEnableQuestComplete() => C.GetEnableQuestComplete();
     [EzIPC] public bool GetEnableRewardPick() => C.GetEnableRewardPick();
@@ -58,26 +107,32 @@ public class IPCProvider
     [EzIPC]
     public void EnqueueMoveAndInteract(MoveData data)
     {
-        S.MoveManager.EnqueueMoveAndInteract(data, 3f);
+        ArgumentNullException.ThrowIfNull(data);
+        RunOnFramework(nameof(EnqueueMoveAndInteract), () => S.MoveManager.EnqueueMoveAndInteract(data, 3f));
     }
 
     [EzIPC]
     public void EnqueueMoveTo2DPoint(MoveData data, float distance)
     {
-        S.MoveManager.MoveTo2DPoint(data, distance);
+        ArgumentNullException.ThrowIfNull(data);
+        RunOnFramework(nameof(EnqueueMoveTo2DPoint), () => S.MoveManager.MoveTo2DPoint(data, distance));
     }
 
     [EzIPC]
     public void EnqueueMoveTo3DPoint(MoveData data, float distance)
     {
-        S.MoveManager.MoveTo3DPoint(data, distance);
+        ArgumentNullException.ThrowIfNull(data);
+        RunOnFramework(nameof(EnqueueMoveTo3DPoint), () => S.MoveManager.MoveTo3DPoint(data, distance));
     }
 
     [EzIPC]
     public void Stop()
     {
-        S.EntityOverlay.TaskManager.Abort();
-        if (C.Navmesh) P.NavmeshManager.Stop();
+        RunOnFramework(nameof(Stop), () =>
+        {
+            S.EntityOverlay.TaskManager.Abort();
+            if (C.Navmesh) P.NavmeshManager.Stop();
+        });
     }
     [EzIPC]
     public bool IsBusy()
