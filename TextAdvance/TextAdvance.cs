@@ -234,6 +234,9 @@ public unsafe class TextAdvance : IDalamudPlugin
         {
             // 按壓守衛的輪詢解除點:放最前面、不受任何開關限制(理由見 AddonPressGuard.Tick)。
             AddonPressGuard.Tick();
+            // 從別的執行緒打進來的 IPC 端點工作,照先進先出在這裡排乾(見 IPCProvider.RunOnFramework)。
+            // 放在 Stage 判斷之前:同一格排進來的 Stop / EnqueueMove* 才會在這一格就生效。
+            IPCProvider.DrainPendingWork();
             // IPC 端點 IsEnabled 讀的每幀快照。單獨包 try 的理由:原本 Tick 只在 !Locked 時才會
             // 走到 IsEnabled,這裡改成每幀無條件呼叫,不能讓它新增一條「Locked 時 Tick 整個中斷」
             // 的路徑 —— 快照拿不到就維持上一幀的值,其餘邏輯照跑。

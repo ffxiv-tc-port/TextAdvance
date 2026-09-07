@@ -1,4 +1,5 @@
 ﻿using ECommons.EzIpcManager;
+using System.Collections.Concurrent;
 using TextAdvance.Navmesh;
 
 namespace TextAdvance.Services;
@@ -34,17 +35,39 @@ public class IPCProvider
             action();
             return;
         }
-        _ = Svc.Framework.RunOnFrameworkThread(() =>
+        PendingWork.Enqueue((endpointName, action));
+    }
+
+    /// <summary>
+    /// 從別的執行緒進來的端點工作,照先進先出排在這裡等 framework 執行緒來排乾。
+    /// </summary>
+    /// <remarks>
+    /// 🔴 這裡刻意<b>不</b>用 <c>Svc.Framework.RunOnFrameworkThread</c> 逐則排隊:本 pin 的
+    /// <c>ThreadBoundTaskScheduler</c> 把待跑的工作放在 <c>ConcurrentDictionary</c> 裡、
+    /// <c>Run()</c> 走訪的是 <c>Keys</c>(Dalamud/Utility/ThreadBoundTaskScheduler.cs) ——
+    /// <b>同一格內不保證先進先出</b>。而這幾個端點的順序是有語意的:
+    /// 呼叫端連著打 <c>Stop()</c> 再 <c>EnqueueMoveTo3DPoint()</c>,順序一倒過來就變成
+    /// 「先排好移動、再把它整個中止」,失敗形式是「叫它走它不走」而且完全不報錯。
+    /// </remarks>
+    private static readonly ConcurrentQueue<(string Name, Action Action)> PendingWork = new();
+
+    /// <summary>
+    /// 由 <c>TextAdvance.Tick</c>(framework 執行緒)每幀呼叫一次,把 <see cref="PendingWork"/> 排乾。
+    /// 每一則各自包 try:其中一則擲例外不會讓後面的排不出去,也不會中斷 Tick 的其餘部分。
+    /// </summary>
+    internal static void DrainPendingWork()
+    {
+        while (PendingWork.TryDequeue(out var work))
         {
             try
             {
-                action();
+                work.Action();
             }
             catch (Exception e)
             {
-                PluginLog.Error($"[TextAdvance] IPC {endpointName} 在 framework 執行緒上執行失敗:{e}");
+                PluginLog.Error($"[TextAdvance] IPC {work.Name} 在 framework 執行緒上執行失敗:{e}");
             }
-        });
+        }
     }
 
     [EzIPC]
