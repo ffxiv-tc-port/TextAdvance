@@ -46,7 +46,8 @@ public class Config : IEzConfig
 
     public bool GetEnableQuestAccept()
     {
-        if (S.IPCProvider.IsInExternalControl()) return S.IPCProvider.ExternalConfig.Merge(this.MainConfig).EnableQuestAccept;
+        var ext = S.IPCProvider.GetActiveExternalControl();
+        if (ext != null) return ext.Config.Merge(this.MainConfig).EnableQuestAccept;
         if (!(this.GlobalOverridesLocal && P.Enabled) && this.TerritoryConditions.TryGetValue(Svc.ClientState.TerritoryType, out var val))
         {
             return val.EnableQuestAccept;
@@ -55,7 +56,8 @@ public class Config : IEzConfig
     }
     public bool GetEnableQuestComplete()
     {
-        if (S.IPCProvider.IsInExternalControl()) return S.IPCProvider.ExternalConfig.Merge(this.MainConfig).EnableQuestComplete;
+        var ext = S.IPCProvider.GetActiveExternalControl();
+        if (ext != null) return ext.Config.Merge(this.MainConfig).EnableQuestComplete;
         if (!(this.GlobalOverridesLocal && P.Enabled) && this.TerritoryConditions.TryGetValue(Svc.ClientState.TerritoryType, out var val))
         {
             return val.EnableQuestComplete;
@@ -64,7 +66,8 @@ public class Config : IEzConfig
     }
     public bool GetEnableRequestHandin()
     {
-        if (S.IPCProvider.IsInExternalControl()) return S.IPCProvider.ExternalConfig.Merge(this.MainConfig).EnableRequestHandin;
+        var ext = S.IPCProvider.GetActiveExternalControl();
+        if (ext != null) return ext.Config.Merge(this.MainConfig).EnableRequestHandin;
         if (!(this.GlobalOverridesLocal && P.Enabled) && this.TerritoryConditions.TryGetValue(Svc.ClientState.TerritoryType, out var val))
         {
             return val.EnableRequestHandin;
@@ -73,7 +76,8 @@ public class Config : IEzConfig
     }
     public bool GetEnableCutsceneEsc()
     {
-        if (S.IPCProvider.IsInExternalControl()) return S.IPCProvider.ExternalConfig.Merge(this.MainConfig).EnableCutsceneEsc;
+        var ext = S.IPCProvider.GetActiveExternalControl();
+        if (ext != null) return ext.Config.Merge(this.MainConfig).EnableCutsceneEsc;
         if (!(this.GlobalOverridesLocal && P.Enabled) && this.TerritoryConditions.TryGetValue(Svc.ClientState.TerritoryType, out var val))
         {
             return val.EnableCutsceneEsc;
@@ -82,7 +86,8 @@ public class Config : IEzConfig
     }
     public bool GetEnableCutsceneSkipConfirm()
     {
-        if (S.IPCProvider.IsInExternalControl()) return S.IPCProvider.ExternalConfig.Merge(this.MainConfig).EnableCutsceneSkipConfirm;
+        var ext = S.IPCProvider.GetActiveExternalControl();
+        if (ext != null) return ext.Config.Merge(this.MainConfig).EnableCutsceneSkipConfirm;
         if (!(this.GlobalOverridesLocal && P.Enabled) && this.TerritoryConditions.TryGetValue(Svc.ClientState.TerritoryType, out var val))
         {
             return val.EnableCutsceneSkipConfirm;
@@ -91,7 +96,8 @@ public class Config : IEzConfig
     }
     public bool GetEnableTalkSkip()
     {
-        if (S.IPCProvider.IsInExternalControl()) return S.IPCProvider.ExternalConfig.Merge(this.MainConfig).EnableTalkSkip;
+        var ext = S.IPCProvider.GetActiveExternalControl();
+        if (ext != null) return ext.Config.Merge(this.MainConfig).EnableTalkSkip;
         if (!(this.GlobalOverridesLocal && P.Enabled) && this.TerritoryConditions.TryGetValue(Svc.ClientState.TerritoryType, out var val))
         {
             return val.EnableTalkSkip;
@@ -100,7 +106,8 @@ public class Config : IEzConfig
     }
     public bool GetEnableRequestFill()
     {
-        if (S.IPCProvider.IsInExternalControl()) return S.IPCProvider.ExternalConfig.Merge(this.MainConfig).EnableRequestFill;
+        var ext = S.IPCProvider.GetActiveExternalControl();
+        if (ext != null) return ext.Config.Merge(this.MainConfig).EnableRequestFill;
         if (!(this.GlobalOverridesLocal && P.Enabled) && this.TerritoryConditions.TryGetValue(Svc.ClientState.TerritoryType, out var val))
         {
             return val.EnableRequestFill;
@@ -109,7 +116,8 @@ public class Config : IEzConfig
     }
     public RequestFillQualityPreference GetRequestFillQualityPreference()
     {
-        if (S.IPCProvider.IsInExternalControl()) return S.IPCProvider.ExternalConfig.Merge(this.MainConfig).RequestFillQualityPreference;
+        var ext = S.IPCProvider.GetActiveExternalControl();
+        if (ext != null) return ext.Config.Merge(this.MainConfig).RequestFillQualityPreference;
         if (!(this.GlobalOverridesLocal && P.Enabled) && this.TerritoryConditions.TryGetValue(Svc.ClientState.TerritoryType, out var val))
         {
             return val.RequestFillQualityPreference;
@@ -168,7 +176,8 @@ public class Config : IEzConfig
     }
     public bool GetEnableRewardPick()
     {
-        if (S.IPCProvider.IsInExternalControl()) return S.IPCProvider.ExternalConfig.Merge(this.MainConfig).EnableRewardPick;
+        var ext = S.IPCProvider.GetActiveExternalControl();
+        if (ext != null) return ext.Config.Merge(this.MainConfig).EnableRewardPick;
         if (!(this.GlobalOverridesLocal && P.Enabled) && this.TerritoryConditions.TryGetValue(Svc.ClientState.TerritoryType, out var val))
         {
             return val.EnableRewardPick;
@@ -177,7 +186,8 @@ public class Config : IEzConfig
     }
     public bool GetEnableAutoInteract()
     {
-        if (S.IPCProvider.IsInExternalControl()) return S.IPCProvider.ExternalConfig.Merge(this.MainConfig).EnableAutoInteract;
+        var ext = S.IPCProvider.GetActiveExternalControl();
+        if (ext != null) return ext.Config.Merge(this.MainConfig).EnableAutoInteract;
         if (!(this.GlobalOverridesLocal && P.Enabled) && this.TerritoryConditions.TryGetValue(Svc.ClientState.TerritoryType, out var val))
         {
             return val.EnableAutoInteract;
@@ -186,7 +196,8 @@ public class Config : IEzConfig
     }
     public bool GetEnableUseEventItem()
     {
-        if (S.IPCProvider.IsInExternalControl()) return S.IPCProvider.ExternalConfig.Merge(this.MainConfig).EnableUseEventItem;
+        var ext = S.IPCProvider.GetActiveExternalControl();
+        if (ext != null) return ext.Config.Merge(this.MainConfig).EnableUseEventItem;
         if (!(this.GlobalOverridesLocal && P.Enabled) && this.TerritoryConditions.TryGetValue(Svc.ClientState.TerritoryType, out var val))
         {
             return val.EnableUseEventItem;

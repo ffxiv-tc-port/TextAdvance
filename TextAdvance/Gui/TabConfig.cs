@@ -19,13 +19,15 @@ internal static class TabConfig
             }
         }
 
-        if (S.IPCProvider.IsInExternalControl())
+        // 一次拿整份快照:舊碼問完 IsInExternalControl() 之後又另外讀一次 Requester,
+        // 兩次讀之間被 IPC 端點清掉的話,顯示出來的是空的外掛名。
+        var ext = S.IPCProvider.GetActiveExternalControl();
+        if (ext != null)
         {
-            ImGuiEx.TextWrapped(EColor.RedBright, $"{"TextAdvance is externally controlled by".Loc()} {S.IPCProvider.Requester}. {"All your settings are being ignored.".Loc()}");
+            ImGuiEx.TextWrapped(EColor.RedBright, $"{"TextAdvance is externally controlled by".Loc()} {ext.Requester}. {"All your settings are being ignored.".Loc()}");
             if (ImGui.SmallButton("Cancel external control".Loc()))
             {
-                S.IPCProvider.Requester = null;
-                S.IPCProvider.ExternalConfig = null;
+                S.IPCProvider.ClearExternalControl();
             }
         }
 
