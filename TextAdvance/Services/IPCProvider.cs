@@ -252,9 +252,33 @@ public class IPCProvider
             if (C.Navmesh) P.NavmeshManager.Stop();
         });
     }
+    /// <summary>
+    /// 「TextAdvance 的移動/互動佇列現在正在跑」的唯讀狀態。Questionable、AutoDuty 這類
+    /// 消費端會<b>高頻輪詢</b>它。
+    /// </summary>
+    /// <remarks>
+    /// 🔴 這支跑在<b>呼叫端的執行緒</b>上,而 <c>TaskManager.IsBusy</c> 問的是 ECommons
+    /// <c>TaskManager</c> 的兩個裸 <c>List&lt;T&gt;</c>(ECommons 自己的註解就寫著
+    /// only ever do that from Framework.Update event) —— framework 執行緒每幀在增刪它們。
+    /// 從別的執行緒讀不只是「拿到舊值」,並行改動時看到的可能是集合內部不變式被打破的中間態。
+    /// <br/><br/>
+    /// 🔑 這裡刻意<b>不</b>走 <see cref="RunOnFramework"/> 的佇列:那條路不等待、回不了答案,
+    /// 對 <c>bool</c> 端點沒有意義;也刻意不改成同步等 framework 執行緒 —— 高頻布林查詢
+    /// 等一幀會把呼叫端的執行緒卡到下一次 Framework.Update。
+    /// 改成讀 framework 執行緒每幀寫入的 <c>TextAdvance.IsBusySnapshot</c>,最舊差一幀,
+    /// 作法與同檔 <see cref="IsEnabled"/> 一致。
+    /// <br/><br/>
+    /// 📌 已經在 framework 執行緒上時就地算,回傳值與時序逐字不變。
+    /// 📌 卸載期不受影響:這條路徑一次都沒有呼叫 <c>RunOnFrameworkThread</c>,
+    /// 所以沒有「<c>IsFrameworkUnloading</c> 為真時就地在呼叫端執行緒執行」那個旁路可踩。
+    /// </remarks>
     [EzIPC]
     public bool IsBusy()
-    {
-        return S.EntityOverlay.TaskManager.IsBusy;
-    }
+        => Svc.Framework.IsInFrameworkUpdateThread ? IsBusyCore() : P.IsBusySnapshot;
+
+    /// <summary>
+    /// <see cref="IsBusy"/> 的實際判斷,條件與改動前逐字相同。
+    /// <b>只能在 framework 執行緒上呼叫。</b>
+    /// </summary>
+    internal static bool IsBusyCore() => S.EntityOverlay.TaskManager.IsBusy;
 }

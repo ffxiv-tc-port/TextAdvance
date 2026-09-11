@@ -35,6 +35,15 @@ public unsafe class TextAdvance : IDalamudPlugin
     /// 不需要鎖。
     /// </summary>
     internal volatile bool IsEnabledPureSnapshot = false;
+    /// <summary>
+    /// IPC 端點 <c>TextAdvance.IsBusy</c> 的每幀快照,由 <see cref="Tick"/>(framework 執行緒)寫入,
+    /// 供該端點在<b>呼叫端的執行緒</b>上讀取。
+    /// <br/><br/>
+    /// 🔴 存在的理由:<c>S.EntityOverlay.TaskManager.IsBusy</c> 問的是 ECommons
+    /// <c>TaskManager</c> 的兩個裸 <c>List&lt;T&gt;</c>,framework 執行緒每幀在增刪它們。
+    /// <c>volatile</c> 只是保證讀到的是最近一次寫入的值(bool 的讀寫本身就是原子的),不需要鎖。
+    /// </summary>
+    internal volatile bool IsBusySnapshot = false;
     private bool CanPressEsc = false;
     //static string[] HandOverStr = { "Hand Over" };
     private Config Config;
@@ -248,6 +257,9 @@ public unsafe class TextAdvance : IDalamudPlugin
             {
                 PluginLog.Debug($"IsEnabled 快照更新失敗,沿用上一幀的值:{e.Message}");
             }
+            // IPC 端點 IsBusy 讀的每幀快照。放在 DrainPendingWork 之後:同一格排進來的
+            // Stop / EnqueueMove* 已經生效,快照反映的是這一格結束時的佇列狀態。
+            this.IsBusySnapshot = IPCProvider.IsBusyCore();
             while (QueuedSplatoonElements.TryDequeue(out var element))
             {
                 if (Splatoon.IsConnected() && element.IsValid())
