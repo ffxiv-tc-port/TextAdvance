@@ -19,6 +19,10 @@ internal class Overlay : Window
 
     public override void PreDraw()
     {
+        // Dalamud Window 基底類別的 PreDraw() 負責推每視窗不透明度(標題列右鍵選單那個滑桿)。
+        // 覆寫而不呼叫 base 會讓那個內建功能對本視窗靜默半失效;base 的 push 要在最外層,
+        // 才能與 PostDraw 結尾的 base.PostDraw() 構成後進先出的成對 pop。
+        base.PreDraw();
         ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, Vector2.Zero);
     }
 
@@ -35,7 +39,7 @@ internal class Overlay : Window
         {
             col = ImGuiColors.DalamudRed;
         }
-        ImGuiEx.Text(col, "TextAdvance: ");
+        ImGuiEx.Text(col, "TextAdvance: ".Loc());
         ImGui.SameLine(0, 0);
         if (!blocked || Environment.TickCount64 % 2000 > 1000)
         {
@@ -72,6 +76,10 @@ internal class Overlay : Window
             ImGuiEx.Text(ImGuiColors.DalamudGrey, " | ");
             ImGui.SameLine(0, 0);
             ImGuiEx.Text(C.GetEnableAutoInteract() ? col : ImGuiColors.DalamudGrey2, "IN");
+            ImGui.SameLine(0, 0);
+            ImGuiEx.Text(ImGuiColors.DalamudGrey, " | ");
+            ImGui.SameLine(0, 0);
+            ImGuiEx.Text(C.GetEnableUseEventItem() ? col : ImGuiColors.DalamudGrey2, "KI");
             /*ImGui.SameLine(0, 0);
             ImGuiEx.Text(ImGuiColors.DalamudGrey, " | ");
             ImGui.SameLine(0, 0);
@@ -79,7 +87,7 @@ internal class Overlay : Window
         }
         else
         {
-            ImGuiEx.Text(ImGuiColors.DalamudRed, $"paused externally");
+            ImGuiEx.Text(ImGuiColors.DalamudRed, "paused externally".Loc());
         }
 
         this.Position = ImGuiHelpers.MainViewport.Pos + new Vector2(ImGuiHelpers.MainViewport.Size.X / 2 - ImGui.GetWindowSize().X / 2, 0) - C.OverlayOffset;
@@ -88,5 +96,6 @@ internal class Overlay : Window
     public override void PostDraw()
     {
         ImGui.PopStyleVar();
+        base.PostDraw();
     }
 }

@@ -22,7 +22,7 @@ public struct ObjectDescriptor : IEquatable<ObjectDescriptor>
 
     public ObjectDescriptor(IGameObject o, bool name = false)
     {
-        this.DataID = o.DataId;
+        this.DataID = o.BaseId;
         this.TerritoryType = Svc.ClientState.TerritoryType;
         this.Kind = o.ObjectKind;
         this.Position = o.Position;

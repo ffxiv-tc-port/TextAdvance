@@ -5,6 +5,7 @@ using FFXIVClientStructs.FFXIV.Client.UI;
 using FFXIVClientStructs.FFXIV.Client.UI.Agent;
 using FFXIVClientStructs.FFXIV.Component.GUI;
 using TextAdvance.Executors;
+using Callback = ECommons.Automation.Callback;
 
 namespace TextAdvance.Gui;
 
@@ -71,16 +72,27 @@ internal static unsafe class TabDebug
         }
         if (ImGui.CollapsingHeader("Quest markers"))
         {
-            var markers = AgentHUD.Instance()->MapMarkers.AsSpan();
-            for (var i = 0; i < markers.Length; i++)
+            // 這個除錯分頁在角色選擇畫面也畫得出來,而 AgentHUD.Instance() 走 CS 的
+            // [Agent] 產生器(agentModule == null ? null : ...),那時候合法回 null。
+            // 「不知道」要在畫面上看得見,不要把它畫成空清單。
+            var hud = AgentHUD.Instance();
+            if (hud == null)
             {
-                var marker = markers[i];
-                if (ThreadLoadImageHandler.TryGetIconTextureWrap(marker.IconId, false, out var tex))
+                ImGuiEx.Text(ImGuiColors.DalamudGrey, "AgentHUD unavailable (?)");
+            }
+            else
+            {
+                var markers = hud->MapMarkers.AsSpan();
+                for (var i = 0; i < markers.Length; i++)
                 {
-                    ImGui.Image(tex.ImGuiHandle, tex.Size);
+                    var marker = markers[i];
+                    if (ThreadLoadImageHandler.TryGetIconTextureWrap(marker.IconId, false, out var tex))
+                    {
+                        ImGui.Image(tex.Handle, tex.Size);
+                    }
+                    ImGuiEx.Text($"{marker.IconId} / {marker.Position} / {Vector3.Distance(Player.Position, marker.Position)}");
+                    ImGui.Separator();
                 }
-                ImGuiEx.Text($"{marker.IconId} / {marker.X} / {marker.Y} / {marker.Z} / {Vector3.Distance(Player.Position, new(marker.X, marker.Y, marker.Z))}");
-                ImGui.Separator();
             }
         }
         if (ImGui.Button("copy target descriptor"))
@@ -98,7 +110,10 @@ internal static unsafe class TabDebug
         }
         if (ImGui.CollapsingHeader("Reward pick"))
         {
-            if (TryGetAddonByName<AtkUnitBase>("JournalResult", out var addon) && IsAddonReady(addon))
+            // 同 ExecPickReward:NodeList[7] 不能裸解參考,空指標是攔不到的 AccessViolationException。
+            if (TryGetAddonByName<AtkUnitBase>("JournalResult", out var addon) && IsAddonReady(addon)
+                && addon->UldManager.NodeList != null && addon->UldManager.NodeListCount > 7
+                && addon->UldManager.NodeList[7] != null)
             {
                 var canvas = addon->UldManager.NodeList[7];
                 var r = new ReaderJournalResult(addon);
@@ -113,10 +128,16 @@ internal static unsafe class TabDebug
                 if (ImGui.Button("Stress test"))
                 {
                     TestTaskManager ??= new();
+                    // 🔴 canvas 是「這一幀」的原生節點指標,而這裡一次排 1000 個任務、每 tick 只跑一個,最後一個要等約 1000 幀才輪到,
+                    //    JournalResult 早就關掉了——對已釋放的節點呼叫 GetComponent() 是攔不到的 AccessViolationException
+                    //    (PickRewardItemUnsafe 的 canvas < 1024 防護只擋得住空值,擋不住「非空但已懸空」)。
+                    //    正解同 ExecRequestFill.TryClickItem:只抄走窗的位址做等值比較,
+                    //    節點在任務真正執行的那一幀重查、重驗、重新取得。
+                    var expectedAddon = (nint)addon;
                     for (var i = 0; i < 1000; i++)
                     {
                         var x = i % 5;
-                        TestTaskManager.Enqueue(() => S.Memory.PickRewardItemUnsafe((nint)canvas->GetComponent(), x));
+                        TestTaskManager.Enqueue(() => StressPickReward(expectedAddon, x));
                     }
                 }
                 if (TestTaskManager != null)
@@ -129,5 +150,24 @@ internal static unsafe class TabDebug
                 }
             }
         }
+    }
+
+    /// <summary>
+    /// 壓力測試用的單發。不接受任何「排入那一幀捕獲的原生指標」:
+    /// <paramref name="expectedAddon"/> 只做等值比較、永不解參考,窗換成另一扇時代表這批任務已過期。
+    /// 節點與 Component 一律在執行的當下重查重驗,對應 <c>ExecPickReward.OnJournalResultSetup</c> 的判空階梯。
+    /// 刻意回傳 void 以維持原本的 <c>Enqueue(Action)</c> 多載語意(每個任務跑一次就出佇列,共 1000 次);
+    /// 改成 Func&lt;bool?&gt; 回 false 會讓第一個任務永遠重試,那是行為回退。
+    /// </summary>
+    private static void StressPickReward(nint expectedAddon, int index)
+    {
+        if (!TryGetAddonByName<AtkUnitBase>("JournalResult", out var live) || !IsAddonReady(live)) return;
+        if ((nint)live != expectedAddon) return;
+        if (live->UldManager.NodeList == null || live->UldManager.NodeListCount <= 7) return;
+        var node = live->UldManager.NodeList[7];
+        if (node == null) return;
+        var component = node->GetComponent();
+        if (component == null) return;
+        S.Memory.PickRewardItemUnsafe((nint)component, index);
     }
 }

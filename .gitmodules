@@ -1,12 +1,6 @@
-[submodule "FFXIVClientStructs"]
-	path = FFXIVClientStructs
-	url = https://github.com/aers/FFXIVClientStructs.git
 [submodule "ECommons"]
 	path = ECommons
-	url = https://github.com/NightmareXIV/ECommons
-[submodule "ClickLib"]
-	path = ClickLib
-	url = https://github.com/Limiana/ClickLib
+	url = https://github.com/ffxiv-tc-port/ECommons.git
 [submodule "NightmareUI"]
 	path = NightmareUI
-	url = https://github.com/NightmareXIV/NightmareUI
+	url = https://github.com/ffxiv-tc-port/NightmareUI.git

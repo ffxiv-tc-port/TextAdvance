@@ -40,7 +40,7 @@ public sealed unsafe class EntityOverlay : IDisposable
             {
                 this.DrawButtonAndPath(x, navmeshAvail);
             }
-            else if (qtaEnabled && x.ObjectKind == ObjectKind.EventObj && x.IsTargetable && (Markers.EventObjWhitelist.Contains(x.DataId) || Markers.EventObjNameWhitelist.ContainsIgnoreCase(x.Name.ToString())))
+            else if (qtaEnabled && x.ObjectKind == ObjectKind.EventObj && x.IsTargetable && (Markers.EventObjWhitelist.Contains(x.BaseId) || EventObjNameMatch.IsWhitelisted(x)))
             {
                 this.DrawButtonAndPath(x, navmeshAvail);
             }
@@ -102,7 +102,8 @@ public sealed unsafe class EntityOverlay : IDisposable
                     }
                     ImGui.PopFont();
                     ImGui.SetWindowFontScale(1f);
-                    ImGuiEx.Tooltip($"{obj.Name}");
+                    // Name 每讀一次就重新解析一份；Tooltip 自己也只在停留時才畫，先判同一個條件再讀。
+                    if (ImGui.IsItemHovered()) ImGuiEx.Tooltip($"{obj.Name}");
                 }
                 else
                 {
@@ -115,7 +116,7 @@ public sealed unsafe class EntityOverlay : IDisposable
         void Move()
         {
             S.EntityOverlay.TaskManager.Abort();
-            S.MoveManager.EnqueueMoveAndInteract(new(obj.Position, obj.DataId, false), 3f);
+            S.MoveManager.EnqueueMoveAndInteract(new(obj.Position, obj.BaseId, false), 3f);
         }
     }
 }

@@ -12,6 +12,7 @@ using ECommons.SplatoonAPI;
 using FFXIVClientStructs.FFXIV.Component.GUI;
 using Lumina.Excel.Sheets;
 using TextAdvance.Executors;
+using TextAdvance.Helpers;
 using TextAdvance.Navmesh;
 using TextAdvance.Services;
 
@@ -24,6 +25,24 @@ public unsafe class TextAdvance : IDalamudPlugin
     internal bool InCutscene = false;
     internal bool WasInCutscene = false;
     internal bool Enabled = false;
+    /// <summary>
+    /// <c>IsEnabled(pure: true)</c> 的每幀快照,由 <see cref="Tick"/>(framework 執行緒)寫入,
+    /// 供 IPC 端點 <c>IsEnabled</c> 在<b>呼叫端的執行緒</b>上讀取。
+    /// <br/><br/>
+    /// 🔴 存在的理由:<see cref="IsEnabled"/> 會走到 <see cref="IsEnableButtonHeld"/>,那裡讀
+    /// <c>ImGui.GetIO()</c> 與 <c>CSFramework.Instance()-&gt;WindowInactive</c>,兩者都不能從
+    /// 別的執行緒碰。<c>volatile</c> 保證讀到的是最近一次寫入的值(bool 的讀寫本身就是原子的),不需要鎖。
+    /// </summary>
+    internal volatile bool IsEnabledPureSnapshot = false;
+    /// <summary>
+    /// IPC 端點 <c>TextAdvance.IsBusy</c> 的每幀快照,由 <see cref="Tick"/>(framework 執行緒)寫入,
+    /// 供該端點在<b>呼叫端的執行緒</b>上讀取。
+    /// <br/><br/>
+    /// 🔴 存在的理由:<c>S.EntityOverlay.TaskManager.IsBusy</c> 問的是 ECommons
+    /// <c>TaskManager</c> 的兩個裸 <c>List&lt;T&gt;</c>,framework 執行緒每幀在增刪它們。
+    /// <c>volatile</c> 只是保證讀到的是最近一次寫入的值(bool 的讀寫本身就是原子的),不需要鎖。
+    /// </summary>
+    internal volatile bool IsBusySnapshot = false;
     private bool CanPressEsc = false;
     //static string[] HandOverStr = { "Hand Over" };
     private Config Config;
@@ -45,6 +64,9 @@ public unsafe class TextAdvance : IDalamudPlugin
         Svc.Commands.RemoveHandler("/at");
         Safe(ExecSkipTalk.Shutdown);
         Safe(ExecPickReward.Shutdown);
+        Safe(ExecUseEventItem.Shutdown);
+        Safe(AddonPressGuard.ForceTeardown);
+        Safe(EzIpcFailureLog.Disable);
         ECommonsMain.Dispose();
         P = null;
     }
@@ -53,6 +75,13 @@ public unsafe class TextAdvance : IDalamudPlugin
     {
         P = this;
         ECommonsMain.Init(pluginInterface, this, Module.SplatoonAPI);
+        // 讓「呼叫了對方沒有的 IPC 方法」不再完全靜默。
+        // ⚠️ 必須走 Svc.Log（EzIpcFailureLog）：InternalLog 只進 ECommons 的 1000 筆環形緩衝區，
+        //    不會進記錄檔，只有開 ECommons 的除錯分頁才看得到。
+        EzIpcFailureLog.Enable();
+        Localization.Init(pluginInterface.UiLanguage is "tw" or "zh" or "zh-Hant" or "zh-Hans"
+            ? "ChineseTraditional"
+            : "English");
         new TickScheduler(delegate
         {
             EzConfig.Migrate<Config>();
@@ -64,15 +93,17 @@ public unsafe class TextAdvance : IDalamudPlugin
             Svc.Commands.AddHandler("/at", new CommandInfo(this.HandleCommand)
             {
                 ShowInHelp = true,
+                // 原始字串不處理跳脫序列:第一行結尾要用真正的換行,寫字面的反斜線 n 會原樣印出來。
                 HelpMessage = """
-                toggles TextAdvance plugin.\n/at y|yes|e|enable - turns on TextAdvance.
+                toggles TextAdvance plugin.
+                /at y|yes|e|enable - turns on TextAdvance.
                 /at n|no|d|disable - turns off TextAdvance.
                 /at c|config|s|settings - opens TextAdvance settings.
                 /at g - toggles visual quest target markers
                 /at mtq - move to the first available quest location, if present (requires navmesh integration to be enabled)
                 /at mtqstop - cancel all pending movement tasks
                 /at mtf - move to flag
-                """
+                """.Loc()
             });
             if (Svc.ClientState.IsLoggedIn)
             {
@@ -93,15 +124,10 @@ public unsafe class TextAdvance : IDalamudPlugin
             new EzTerritoryChanged(this.ClientState_TerritoryChanged);
             ExecSkipTalk.Init();
             ExecPickReward.Init();
+            ExecUseEventItem.Init();
             this.NavmeshManager = new();
             SingletonServiceManager.Initialize(typeof(ServiceManager));
-            EzIPC.OnSafeInvocationException += this.EzIPC_OnSafeInvocationException;
         });
-    }
-
-    private void EzIPC_OnSafeInvocationException(Exception obj)
-    {
-        InternalLog.Error($"IPC error: {obj}");
     }
 
     private void ClientState_TerritoryChanged(ushort obj)
@@ -177,8 +203,9 @@ public unsafe class TextAdvance : IDalamudPlugin
             S.EntityOverlay.TaskManager.Abort();
             if (C.Navmesh) P.NavmeshManager.Stop();
         }
-        else if (arguments.EqualsIgnoreCase("d"))
+        else if (arguments.EqualsIgnoreCase("desc"))
         {
+            // 除錯用（複製目標描述）。刻意不叫 "d"：那是說明文字寫的停用縮寫。
             if (Svc.Targets.Target != null) Copy(new ObjectDescriptor(Svc.Targets.Target, true).AsCtorString());
         }
         else
@@ -212,6 +239,24 @@ public unsafe class TextAdvance : IDalamudPlugin
     {
         try
         {
+            // 按壓守衛的輪詢解除點:放最前面、不受任何開關限制(理由見 AddonPressGuard.Tick)。
+            AddonPressGuard.Tick();
+            // 從別的執行緒打進來的 IPC 端點工作,照先進先出在這裡排乾(見 IPCProvider.RunOnFramework)。
+            // 放在 Stage 判斷之前:同一格排進來的 Stop / EnqueueMove* 才會在這一格就生效。
+            IPCProvider.DrainPendingWork();
+            // IPC 端點 IsEnabled 讀的每幀快照。單獨包 try 的理由:這裡是每幀無條件呼叫(Locked 時也會走到 IsEnabled),
+            // 不能讓它變成一條「Tick 整個中斷」的路徑 —— 快照拿不到就維持上一幀的值,其餘邏輯照跑。
+            try
+            {
+                this.IsEnabledPureSnapshot = this.IsEnabled(true);
+            }
+            catch (Exception e)
+            {
+                PluginLog.Debug($"IsEnabled 快照更新失敗,沿用上一幀的值:{e.Message}");
+            }
+            // IPC 端點 IsBusy 讀的每幀快照。放在 DrainPendingWork 之後:同一格排進來的
+            // Stop / EnqueueMove* 已經生效,快照反映的是這一格結束時的佇列狀態。
+            this.IsBusySnapshot = IPCProvider.IsBusyCore();
             while (QueuedSplatoonElements.TryDequeue(out var element))
             {
                 if (Splatoon.IsConnected() && element.IsValid())
@@ -222,10 +267,10 @@ public unsafe class TextAdvance : IDalamudPlugin
             ExecSkipTalk.IsEnabled = false;
             ExecPickReward.IsEnabled = false;
             ExecAutoSnipe.IsEnabled = false;
-            if (this.LoggedIn && Svc.ClientState.LocalPlayer != null)
+            if (this.LoggedIn && Svc.Objects.LocalPlayer != null)
             {
                 this.LoggedIn = false;
-                if (this.Config.AutoEnableNames.Contains(Svc.ClientState.LocalPlayer.Name.ToString() + "@" + Svc.ClientState.LocalPlayer.HomeWorld.ValueNullable?.Name.ToString()))
+                if (this.Config.AutoEnableNames.Contains(Svc.Objects.LocalPlayer.Name.ToString() + "@" + Svc.Objects.LocalPlayer.HomeWorld.ValueNullable?.Name.ToString()))
                 {
                     this.Enabled = true;
                     if (!C.NotifyDisableOnLogin)

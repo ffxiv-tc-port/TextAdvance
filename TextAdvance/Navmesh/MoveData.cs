@@ -30,7 +30,7 @@ public class MoveData
             }
             foreach (var x in Svc.Objects.OrderBy(z => Vector3.Distance(Player.Object.Position, z.Position)))
             {
-                if (x.ObjectKind.EqualsAny(ObjectKind.EventNpc, ObjectKind.EventObj) && x.IsTargetable && Vector3.Distance(x.Position, this.Position) < 10f)
+                if ((x.ObjectKind is ObjectKind.EventNpc or ObjectKind.EventObj) && x.IsTargetable && Vector3.Distance(x.Position, this.Position) < 10f)
                 {
                     return x;
                 }
@@ -40,7 +40,7 @@ public class MoveData
         {
             foreach (var x in Svc.Objects)
             {
-                if (x.DataId == this.DataID && Vector3.Distance(this.Position, x.Position) < 1f) return x;
+                if (x.BaseId == this.DataID && Vector3.Distance(this.Position, x.Position) < 1f) return x;
             }
         }
         return null;
