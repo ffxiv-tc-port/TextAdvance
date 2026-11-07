@@ -17,6 +17,8 @@ public class NavmeshManager
 
     [EzIPC("Path.%m")] public readonly Action Stop;
     [EzIPC("Path.%m")] public readonly Func<bool> IsRunning;
+    /// <summary>剩下的路徑點，最後一個＝終點；端點不存在或 vnavmesh 沒裝時為 null。</summary>
+    [EzIPC("Path.%m")] public readonly Func<List<Vector3>> ListWaypoints;
 
     /// <summary>
     /// Vector3 p, float halfExtentXZ, float halfExtentY

@@ -151,6 +151,9 @@ public unsafe class MoveManager
         return null;
     }
 
+    /// <summary>自己的移動一律排在 EntityOverlay.TaskManager 裡：佇列忙＝目前的 vnavmesh 路徑是自己發起的。只能在框架執行緒呼叫。</summary>
+    internal bool OwnsPath() => S.EntityOverlay.TaskManager.IsBusy;
+
     public void EnqueueMoveAndInteract(MoveData data, float distance)
     {
         this.SpecialAdjust(data);

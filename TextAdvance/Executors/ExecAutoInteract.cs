@@ -142,8 +142,7 @@ public static unsafe class ExecAutoInteract
         {
             if (obj.IsTargetable && Vector3.Distance(Player.Object.Position, obj.Position) < GetMinDistance(obj) && !Player.IsAnimationLocked && Utils.ThrottleAutoInteract())
             {
-                S.EntityOverlay.TaskManager.Abort();
-                P.NavmeshManager.Stop();
+                StopPathIfRelevant(obj);
                 RecordInteractionWith(obj);
                 TargetSystem.Instance()->InteractWithObject(Svc.Targets.Target.Struct(), false);
             }
@@ -152,11 +151,37 @@ public static unsafe class ExecAutoInteract
         {
             if (obj.IsTargetable && Vector3.Distance(Player.Object.Position, obj.Position) < GetMinDistance(obj) && !IsOccupied() && EzThrottler.Throttle("SetTargetIN"))
             {
-                S.EntityOverlay.TaskManager.Abort();
-                P.NavmeshManager.Stop();
+                StopPathIfRelevant(obj);
                 Svc.Targets.Target = obj;
             }
         }
+    }
+
+    /// <summary>路徑終點離物件多近（只比 X/Z）算「正要去跟它互動」：互動距離之外加的餘量，吸收 vnavmesh 把終點落到網格旁邊的偏移。</summary>
+    private const float PathEndSlack = 2f;
+
+    // 契約：只在即將互動的那一刻呼叫（受節流），所以這裡才讀一次 IPC，不是每幀。
+    // 刻意不停別的插件經過此處、終點卻在別處的路徑；讀不到路徑資訊也不停。
+    private static void StopPathIfRelevant(IGameObject obj)
+    {
+        var ownsPath = S.MoveManager.OwnsPath();
+        S.EntityOverlay.TaskManager.Abort();
+        if (ownsPath)
+        {
+            P.NavmeshManager.Stop();
+            return;
+        }
+        List<Vector3> waypoints = null;
+        try { waypoints = P.NavmeshManager.ListWaypoints(); }
+        catch (Exception) { }
+        if (waypoints == null || waypoints.Count == 0) return;
+        var end = waypoints[waypoints.Count - 1];
+        var dx = end.X - obj.Position.X;
+        var dz = end.Z - obj.Position.Z;
+        var radius = GetMinDistance(obj) + PathEndSlack;
+        var near = dx * dx + dz * dz <= radius * radius;
+        PluginLog.Information($"[AutoInteract] 別的插件的路徑經過 {obj.Name}({obj.BaseId}): 終點離物件 {MathF.Sqrt(dx * dx + dz * dz):F1}m, 門檻 {radius:F1}m, {(near ? "停止路徑" : "不停")}");
+        if (near) P.NavmeshManager.Stop();
     }
 
     private static void RecordInteractionWith(IGameObject obj)
