@@ -67,8 +67,20 @@ public unsafe class TextAdvance : IDalamudPlugin
         Safe(ExecUseEventItem.Shutdown);
         Safe(AddonPressGuard.ForceTeardown);
         Safe(EzIpcFailureLog.Disable);
+        Safe(this.StopOwnMoveOnUnload);
         ECommonsMain.Dispose();
         P = null;
+    }
+
+    // 卸載時只停自己的移動（UNLOAD-OWNMOVE）：佇列忙＝路徑是自己送的（MoveManager.OwnsPath 的契約），
+    // 佇列空就不碰 vnavmesh、不停別人的路徑。必須在 ECommonsMain.Dispose 收掉 EzIPC 之前。
+    private void StopOwnMoveOnUnload()
+    {
+        if (this.NavmeshManager == null || S.EntityOverlay?.TaskManager == null || S.MoveManager == null) return;
+        if (!S.MoveManager.OwnsPath()) return;
+        S.EntityOverlay.TaskManager.Abort();
+        this.NavmeshManager.Stop();
+        PluginLog.Information("[TextAdvance] 卸載時自己的移動還在進行，已停下自己送出的 vnavmesh 路徑");
     }
 
     public TextAdvance(IDalamudPluginInterface pluginInterface)
