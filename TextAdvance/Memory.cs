@@ -1,4 +1,5 @@
 ﻿using ECommons.EzHookManager;
+using FFXIVClientStructs.FFXIV.Client.Game.Control;
 
 namespace TextAdvance;
 
@@ -8,13 +9,8 @@ public unsafe class Memory
     [EzHook("48 89 5C 24 ?? 48 89 74 24 ?? 4C 89 4C 24 ?? 55")]
     private EzHook<AtkComponentJournalCanvas_ReceiveEventDelegate> AtkComponentJournalCanvas_ReceiveEventHook;
 
-    internal delegate nint IsFlightProhibitedDelegate(nint a1);
-    // 沒解到＝null。唯一的讀取點是 Utils.CanFly，它先判 CanCheckFlight。
-    internal IsFlightProhibitedDelegate IsFlightProhibited;
-    internal nint FlightAddr = Svc.SigScanner.TryScanText("48 8D 0D ?? ?? ?? ?? E8 ?? ?? ?? ?? 84 C0 75 11", out var result) ? result : default;
-
-    /// <summary>false ＝ 判斷不了能不能飛；<see cref="Utils.CanFly"/> 此時一律回「不能飛」。</summary>
-    internal bool CanCheckFlight => this.IsFlightProhibited != null && this.FlightAddr != 0;
+    /// <summary>false ＝ CS 沒解到 <see cref="Control.GetFlightAllowedStatus"/>（直接呼叫會擲）；<see cref="Utils.CanFly"/> 此時一律回「不能飛」。</summary>
+    internal bool CanCheckFlight => Control.MemberFunctionPointers.GetFlightAllowedStatus != null;
 
     /// <summary>false 時 <see cref="PickRewardItemUnsafe"/> 什麼都不做（它靠這個 hook 的 Original 把選取交給遊戲）。</summary>
     internal bool CanPickReward => this.AtkComponentJournalCanvas_ReceiveEventHook != null;
@@ -22,9 +18,8 @@ public unsafe class Memory
     private Memory()
     {
         EzSignatureHelper.Initialize(this);
-        if (Svc.SigScanner.TryScanText("40 53 48 83 EC 20 48 8B 1D ?? ?? ?? ?? 48 85 DB 0F 84 ?? ?? ?? ?? 80 3D", out var isFlightProhibited)) this.IsFlightProhibited = EzDelegate.Get<IsFlightProhibitedDelegate>(isFlightProhibited);
         // 只在載入時印一次：每行＝一項沒對上的特徵碼，與因此停掉的功能。
-        if (!this.CanCheckFlight) PluginLog.Warning($"[TextAdvance] 特徵碼對不上（{nameof(this.IsFlightProhibited)}／{nameof(this.FlightAddr)}）：判斷不了能不能飛，一律當成不能飛：任務導航不起飛、改走地面。");
+        if (!this.CanCheckFlight) PluginLog.Warning($"[TextAdvance] 特徵碼對不上（Control.GetFlightAllowedStatus）：判斷不了能不能飛，一律當成不能飛：任務導航不起飛、改走地面。");
         if (!this.CanPickReward) PluginLog.Warning($"[TextAdvance] 特徵碼對不上（{nameof(this.AtkComponentJournalCanvas_ReceiveEventHook)}）：自動挑選任務獎勵停用，任務完成視窗的自選獎勵要自己點。");
     }
 

@@ -5,6 +5,7 @@ using ECommons.GameHelpers;
 using ECommons.SplatoonAPI;
 using ECommons.Throttlers;
 using FFXIVClientStructs.FFXIV.Client.Game;
+using FFXIVClientStructs.FFXIV.Client.Game.Control;
 using FFXIVClientStructs.FFXIV.Client.UI.Agent;
 using Lumina.Excel.Sheets;
 using static TextAdvance.SplatoonHandler;
@@ -153,8 +154,8 @@ public static unsafe class Utils
         return mount.Singular.ExtractText();
     }
 
-    /// <summary>判斷不了（特徵碼沒解到）時回 false＝當成不能飛。</summary>
-    public static bool CanFly() => C.EnableFlight && S.Memory.CanCheckFlight && S.Memory.IsFlightProhibited(S.Memory.FlightAddr) == 0;
+    /// <summary>判斷不了（CS 沒解到）時回 false＝當成不能飛。</summary>
+    public static bool CanFly() => C.EnableFlight && S.Memory.CanCheckFlight && Control.GetFlightAllowedStatus() == Control.FlightAllowedStatus.CanFly;
 
     public static bool ThrottleAutoInteract() => EzThrottler.Throttle("AutoInteract");
     public static bool ReThrottleAutoInteract() => EzThrottler.Throttle("AutoInteract", rethrottle: true);
